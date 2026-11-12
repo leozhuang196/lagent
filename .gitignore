@@ -1,0 +1,13 @@
+/bin/
+/dist/
+/web/**/node_modules/
+/web/**/dist/
+/.idea/
+/data/
+*.local.yaml
+
+# Local development configuration contains API credentials.
+/configs/dev.yaml
+
+# Local bootstrap files may contain service URLs and credentials.
+*.local.json

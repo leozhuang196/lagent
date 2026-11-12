@@ -1,0 +1,16 @@
+{
+  "key": "multi-search",
+  "name": "多路召回",
+  "description": "对多个检索源并行检索同一问题，汇总成带出处的答案；个别检索源失败不影响整体。",
+  "role": "general",
+  "params": [
+    {"name": "question", "type": "string", "required": true, "label": "问题"},
+    {"name": "sources", "type": "list", "required": true, "label": "检索源名称列表"}
+  ],
+  "steps": [
+    {"id": "search", "fan_out": "sources", "on_failure": "continue", "retries": 1,
+     "instruction": "使用 search 工具在检索源「{{item}}」中检索：{{params.question}}。把与问题直接相关的要点整理成列表，每条标注出处，然后调用 submit_result 提交。"},
+    {"id": "answer", "depends_on": ["search"],
+     "instruction": "根据各检索源的结果回答问题：{{params.question}}\n\n检索结果：\n{{steps.search.summary}}\n\n要求：结论在前，逐条标注出处；结果之间矛盾时指出。完成后调用 submit_result 提交答案。"}
+  ]
+}

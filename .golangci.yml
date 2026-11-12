@@ -1,0 +1,74 @@
+# Layer rules from the design (§3.2). depguard turns them into CI failures.
+version: "2"
+linters:
+  enable:
+    - depguard
+  settings:
+    depguard:
+      rules:
+        core: # R-5: core imports nothing internal
+          files: ["**/internal/core/**"]
+          deny:
+            - pkg: github.com/eternityx/lagent/internal/transport
+              desc: core must not depend on other layers
+            - pkg: github.com/eternityx/lagent/internal/orch
+              desc: core must not depend on other layers
+            - pkg: github.com/eternityx/lagent/internal/rules
+              desc: core must not depend on other layers
+            - pkg: github.com/eternityx/lagent/internal/capability
+              desc: core must not depend on other layers
+            - pkg: github.com/eternityx/lagent/internal/infra
+              desc: core must not depend on other layers
+        rules: # R-1: rules are pure
+          files: ["**/internal/rules/**", "!$test"]
+          deny:
+            - pkg: github.com/eternityx/lagent/internal/infra
+              desc: rules take data as arguments; no storage or network
+            - pkg: github.com/eternityx/lagent/internal/orch
+              desc: rules must not orchestrate
+            - pkg: github.com/eternityx/lagent/internal/capability
+              desc: rules must not call tools
+            - pkg: github.com/eternityx/lagent/internal/transport
+              desc: rules must not know protocols
+            - pkg: go.mongodb.org
+              desc: no vendor SDKs in rules
+            - pkg: github.com/redis
+              desc: no vendor SDKs in rules
+        transport: # R-2: no direct storage access from transport
+          files: ["**/internal/transport/**"]
+          deny:
+            - pkg: github.com/eternityx/lagent/internal/infra/repo
+              desc: go through orch use cases (auth and audit live there)
+            - pkg: github.com/eternityx/lagent/internal/capability
+              desc: transport does not call tools
+        capability: # R-4: tools cannot drive turns
+          files: ["**/internal/capability/**"]
+          deny:
+            - pkg: github.com/eternityx/lagent/internal/orch
+              desc: tools must not reach orchestration (no recursive dispatch)
+        implementations: # R-3: only app/ imports implementations
+          files: ["**/internal/**", "!**/internal/app/**", "!$test", "!**/internal/orch/orchtest/**", "!**/internal/infra/**"]
+          deny:
+            - pkg: github.com/eternityx/lagent/internal/infra/repo/memory
+              desc: inject implementations from internal/app
+            - pkg: github.com/eternityx/lagent/internal/infra/repo/mongo
+              desc: inject implementations from internal/app
+            - pkg: github.com/eternityx/lagent/internal/infra/repo/postgres
+              desc: inject implementations from internal/app
+            - pkg: github.com/eternityx/lagent/internal/infra/coord/memory
+              desc: inject implementations from internal/app
+            - pkg: github.com/eternityx/lagent/internal/infra/coord/redis
+              desc: inject implementations from internal/app
+            - pkg: github.com/eternityx/lagent/internal/infra/queue/memory
+              desc: inject implementations from internal/app
+            - pkg: github.com/eternityx/lagent/internal/infra/queue/asynq
+              desc: inject implementations from internal/app
+            - pkg: github.com/eternityx/lagent/internal/infra/llm/anthropic
+              desc: inject implementations from internal/app
+            - pkg: github.com/eternityx/lagent/internal/infra/llm/openai
+              desc: inject implementations from internal/app
+        scope: # R-6: cross-tenant reads only in platform-level use cases
+          files: ["**/internal/**", "!**/internal/orch/admin/**", "!**/internal/orch/scheduler/**", "!**/internal/orch/workflow/**", "!**/internal/orch/feishu/**", "!**/internal/infra/repo/**", "!$test"]
+          deny:
+            - pkg: github.com/eternityx/lagent/internal/infra/repo/scope
+              desc: cross-tenant reads are restricted (R-6)

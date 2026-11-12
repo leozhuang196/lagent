@@ -1,0 +1,79 @@
+# lagent configuration. ${VAR} and ${VAR:-default} are expanded from the environment.
+# Secrets are never written here: reference environment variables.
+
+# Roles this process runs. Split them across processes in production; a single
+# process may run all of them for small deployments.
+roles: [api, engine, worker]
+
+# Optional JSON file: {"mcp_servers": [...], "retrieval_sources": [...], "roles": [...]}.
+# Installs missing records for auth.bootstrap_tenant; existing tenant edits are kept.
+# Paths are relative to the working directory. Keep credentials in ignored local files.
+# bootstrap_file: configs/dev.bootstrap.local.json
+
+http:
+  addr: ":8080"
+  base_url: ${LAGENT_BASE_URL:-http://localhost:8080}
+  cookie_secret: ${LAGENT_COOKIE_SECRET}
+
+auth:
+  # Platform-admin key used to create the first tenants and keys. Remove after setup.
+  bootstrap_key: ${LAGENT_BOOTSTRAP_KEY}
+  bootstrap_tenant: default
+
+store:
+  driver: memory          # memory | mongo | postgres
+  uri: ${LAGENT_DB_URI:-}
+  database: lagent
+
+redis:
+  addr: ${LAGENT_REDIS_ADDR:-}   # empty = in-process coordination (single process only)
+
+object:
+  driver: local           # local | s3
+  root: ./data/objects
+  bucket: lagent-artifacts
+  region: us-east-1
+  endpoint: ""
+
+secret:
+  driver: local
+  path: ./data/secrets.enc
+  key: ${LAGENT_SECRET_KEY}
+
+sandbox:
+  root: ./data/workspaces
+  run_as_uid: 0           # >0 drops commands to this uid (requires running as root)
+  egress_proxy: ""        # outbound HTTP(S) of commands goes through this proxy
+  cpu_seconds: 120
+  memory_mb: 2048
+
+llm:
+  default: deepseek/deepseek-v4-pro
+  providers:
+    deepseek:
+      base_url: https://api.deepseek.com/v1
+      api_key: ${DEEPSEEK_API_KEY:-}
+      concurrency: 8
+    # internal-gateway:          # any OpenAI-compatible endpoint
+    #   base_url: https://llm.internal/v1
+    #   api_key: ${GATEWAY_KEY}
+
+limits:
+  workers: 16
+  turn_timeout: 30m
+  model_call: 5m          # must be < step < flow
+  step: 30m
+  flow: 6h
+  lease_ttl: 30s
+  event_ttl: 24h
+  subtask_parallel: 4
+  fanout_parallel: 8
+  context_limit: 150000
+
+feishu:
+  app_id: ${FEISHU_APP_ID:-}
+  app_secret: ${FEISHU_APP_SECRET:-}
+
+record_llm_calls: true    # keeps raw model requests for the turn debugger
+default_role: general
+log_level: info

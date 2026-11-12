@@ -1,0 +1,2163 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>内部 Agent 平台 · 设计框架 · 内部 Agent 平台</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f7f7f5; --surface:#fff; --surface-1:#fafaf8; --surface-2:#f1f0ed;
+  --ink-1:#0b0b0b; --ink-2:#3f3e3b; --ink-muted:#7c7a74;
+  --border:#e4e3dd; --rule:#ecebe5; --accent:#2a78d6; --accent-soft:#eaf2fd;
+  --crit:#c0392b; --warn:#b8860b; --ok:#1b6b21;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0f0f0e; --surface:#1a1a19; --surface-1:#1f1f1e; --surface-2:#262624;
+  --ink-1:#f5f4f1; --ink-2:#c9c7c0; --ink-muted:#8d8b84;
+  --border:#2e2e2b; --rule:#272724; --accent:#4b95e8; --accent-soft:#16273c;
+  --crit:#e8705f; --warn:#d9a441; --ok:#6fd47f;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink-1);font:15px/1.75 var(--sans);-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer}
+
+.shell{display:grid;grid-template-columns:266px 1fr;min-height:100vh}
+.side{background:var(--surface);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow-y:auto;padding:20px 0}
+.brand{padding:0 20px 14px;border-bottom:1px solid var(--rule);margin-bottom:12px}
+.brand h1{margin:0;font-size:15px;font-weight:700}
+.brand p{margin:4px 0 0;font-size:12px;color:var(--ink-muted)}
+#toc{padding:0 12px}
+#toc a{display:block;padding:5px 10px;border-radius:6px;color:var(--ink-2);text-decoration:none;font-size:13px;line-height:1.4}
+#toc a.lv2{padding-left:24px;font-size:12.5px;color:var(--ink-muted)}
+#toc a:hover{background:var(--surface-1)}
+#toc a.active{background:var(--accent-soft);color:var(--ink-1);font-weight:600}
+
+.topbar{display:flex;align-items:center;gap:10px;padding:13px 40px;border-bottom:1px solid var(--rule);
+  background:var(--surface);position:sticky;top:0;z-index:5}
+.topbar .t{font-size:13px;color:var(--ink-muted)}
+.topbar .sp{flex:1}
+.topbar button{background:transparent;border:1px solid var(--border);border-radius:7px;padding:4px 11px;font-size:12.5px;color:var(--ink-2)}
+.wrap{max-width:860px;margin:0 auto;padding:26px 40px 100px}
+
+h1.dt{font-size:28px;margin:8px 0 14px;letter-spacing:-.02em}
+h2{font-size:21px;margin:52px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--rule);scroll-margin-top:68px}
+h2:first-of-type{margin-top:18px}
+h3{font-size:16.5px;margin:30px 0 10px;scroll-margin-top:68px}
+h4{font-size:14.5px;margin:20px 0 7px;color:var(--ink-2)}
+p{margin:11px 0}
+ul,ol{padding-left:22px;margin:11px 0}
+li{margin:6px 0}
+b,strong{font-weight:650}
+code{font-family:var(--mono);font-size:.87em;background:var(--surface-2);padding:1px 5px;border-radius:4px}
+hr{border:0;border-top:1px solid var(--rule);margin:36px 0}
+
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:2px 14px 6px;margin:16px 0}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-weight:600;color:var(--ink-muted);font-size:12px;padding:11px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid var(--rule);vertical-align:top;line-height:1.6}
+tr:last-child td{border-bottom:0}
+td:first-child{white-space:nowrap}
+
+.callout{border-left:3px solid var(--accent);background:var(--surface-1);padding:12px 16px;margin:16px 0;
+  border-radius:0 8px 8px 0;font-size:14px;color:var(--ink-2)}
+pre.ascii{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:16px 18px;
+  overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.62;color:var(--ink-2);margin:16px 0}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 14px;margin:18px 0;text-align:center}
+pre.mermaid{margin:0;white-space:normal;font-family:var(--sans)}
+.diagram .nodeLabel p,.diagram span.nodeLabel,.diagram .edgeLabel p{white-space:nowrap!important;margin:0!important}
+.diagram .nodeLabel p+p{margin-top:1px!important}
+s{color:var(--ink-muted)}
+
+@media(max-width:960px){.shell{grid-template-columns:1fr}.side{position:static;height:auto}.wrap{padding:22px 20px 60px}.topbar{padding:12px 20px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><h1>内部 Agent 平台 · 设计框架</h1><p>待评审</p></div>
+    <nav id="toc"></nav>
+  </aside>
+  <main>
+    <div class="topbar"><span class="t">架构分层 · 模块边界 · 能力模型 · 核心流程 · 业务接入 · 技术选型</span>
+      <span class="sp"></span><button id="theme">◑ 主题</button></div>
+    <div class="wrap"><h1 class="dt">内部 Agent 平台 · 设计框架</h1>
+    <div class="callout key">本文档描述平台的整体设计：架构分层、模块边界、各项能力模型、核心流程、业务接入方式与技术选型。内容自包含，实现阶段不需要另行查阅其他材料。 各项决策的候选方案与论证过程另有《技术设计文档》，本文只给结论。相关的产品旅程与界面结构见《PRD》，流程清单与覆盖情况见《流程地图》。</div>
+
+    <h2 id="f-1">1 · 概述</h2>
+
+    <h3>1.1 系统定位</h3>
+
+    <p>平台把自然语言描述的工作任务转换为一系列工具调用并执行完成，产出可直接使用的交付物。三个接入面：网页会话、飞书群内 <code>@提及</code>、内部系统的 HTTP 接口。</p>
+
+    <p>与对话式助手的区别在于<b>它执行有副作用的操作</b>——写文件、调用外部系统、发送消息。因此有风险的调用必须经人工审批，这一约束贯穿全部设计。</p>
+
+    <p>平台本身是 Pilotx AI Agent 平台的<b>平台层</b>，业务 Agent 运行其上，两层的边界见 §2.1 与 §10。</p>
+
+    <h3>1.2 整体架构</h3>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  B1["`业务 Agent 层 · 配置数据
+助手角色 · 工具集 · 流程模板
+记忆空间 · Skill`"]
+  IN["`接入面
+网页会话 · 飞书 @提及
+内部系统 HTTP · 定时触发`"]
+  T["`执行轮次
+装配 → 权限判定
+→ 工具调用 → 事件产出`"]
+  CAP["`平台能力
+编排 · 安全
+状态一致性 · 扩展体系`"]
+  DEP["`外部依赖
+主库 · Redis · 对象存储 · 密钥库
+模型服务 · MCP 服务 · 飞书`"]
+
+  B1 -.装配为运行时配置.-> T
+  IN --> T
+  T --> CAP
+  CAP --> T
+  T --> DEP
+  CAP --> DEP
+      </pre>
+    </div>
+
+    <p>图的读法：</p>
+
+    <ul>
+      <li><b>执行轮次是中心。</b> 四个接入面的请求最终都汇聚到它，编排的每个步骤也是一次轮次（§4.1）。</li>
+      <li><b>四组平台能力环绕执行轮次</b>，不是它的上下游：<b>编排</b>把一次请求展开成多个轮次（§5），<b>安全</b>提供风险判定与审批（§8），<b>状态一致性</b>提供租约、事件流与跨实例信令（§7），<b>扩展体系</b>提供可调用的工具与知识（§6）。</li>
+      <li><b>业务 Agent 层用虚线连接</b>，因为它不是代码调用关系，而是配置在会话构建时被装配成运行时配置（§4.3）。</li>
+      <li><b>外部依赖在最下方</b>，平台通过基础设施层与扩展体系访问它们（§2.3）。</li>
+    </ul>
+
+    <p>后续章节是这张图的展开：§2 讲三种划分与部署，§3 讲代码结构，§4–§8 逐块展开平台层，§9 给出全部流程时序，§10 讲业务层怎么接。</p>
+
+    <h3>1.3 术语速览</h3>
+
+    <p>后面章节会反复用到这些词，先各给一句，详细定义在对应章节。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>术语</th>
+      <th>一句话</th>
+      <th>详见</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><b>执行轮次</b></td><td>一次"用户提交 → 循环跑到模型不再请求工具"的完整过程，系统唯一的执行单元</td><td>§4.1</td></tr>
+      <tr><td><b>助手角色</b></td><td>一组配置，决定这次执行的系统提示词、可用工具与权限模式</td><td>§4.3</td></tr>
+      <tr><td><b>装配</b></td><td>从角色标识算出这次执行的系统提示词与工具清单</td><td>§4.3</td></tr>
+      <tr><td><b>权限模式</b></td><td>会话级策略，决定哪些风险等级的操作需要人工审批</td><td>§4.4、§8.1</td></tr>
+      <tr><td><b>待办项</b></td><td>需人工处理事项（审批或提问）的持久化记录</td><td>§4.4、§9.5</td></tr>
+      <tr><td><b>执行图</b></td><td>多步骤流程的定义与运行记录，步骤间以依赖关系构成有向无环图</td><td>§5.2</td></tr>
+      <tr><td><b>步骤指纹</b></td><td>由定义、步骤与解析后输入算出的哈希；指纹相同即可复用结果</td><td>§5.3</td></tr>
+      <tr><td><b>执行租约</b></td><td>Redis 中的带 TTL 键，保证同一会话同时只有一个轮次在执行</td><td>§7.1</td></tr>
+      <tr><td><b>检索源</b></td><td>「MCP 工具 + 一组固定参数」的命名封装，模板只引用它而不引用服务名</td><td>§6.2</td></tr>
+      <tr><td><b>Skill</b></td><td>可复用的指令知识；名称与描述常驻上下文，正文按需加载</td><td>§6.3</td></tr>
+      </tbody></table></div>
+
+    <h3>1.4 边界</h3>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>在范围内</th>
+      <th>不在范围内</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>会话式任务执行、进度可见、审批把关、交付物产出</td><td>组织身份体系（SSO）与多租户隔离</td></tr>
+      <tr><td>飞书接入与群内审批闭环</td><td>飞书之外的连接器（统一走 MCP）</td></tr>
+      <tr><td>定时任务、可复用流程模板</td><td>图形化流程编辑器</td></tr>
+      <tr><td>对外 HTTP 接口与事件流</td><td>代码仓库操作</td></tr>
+      <tr><td>工具注册、MCP 接入、检索源</td><td>向量库与自建 RAG 管道</td></tr>
+      </tbody></table></div>
+
+    <h2 id="f-2">2 · 架构总览</h2>
+
+    <h3>2.1 两层划分：平台层与业务 Agent 层</h3>
+
+    <p>平台层提供机制，业务 Agent 层提供内容。<b>平台代码中不出现任何具体业务 Agent 的概念。</b></p>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart LR
+  subgraph BIZ["业务 Agent 层 —— 配置数据"]
+    A1["智能投放"]
+    A2["创意生成"]
+    A3["用户画像"]
+    A4["数据分析"]
+    A5["客服坐席助手"]
+  end
+
+  subgraph ASM["装配要素 —— 平台定机制，业务填内容"]
+    E1["助手角色"]
+    E2["工具集"]
+    E3["流程模板"]
+    E4["记忆空间"]
+    E5["Skill"]
+  end
+
+  subgraph PLAT["平台层 —— 代码"]
+    P1["执行轮次引擎"]
+    P2["工具注册表"]
+    P3["执行图引擎"]
+    P4["记忆存储"]
+    P5["Skill 存储"]
+  end
+
+  A1 --> E1
+  A1 --> E2
+  A1 --> E3
+  A1 --> E4
+  A1 --> E5
+  E1 --> P1
+  E2 --> P2
+  E3 --> P3
+  E4 --> P4
+  E5 --> P5
+      </pre>
+    </div>
+
+    <p>图中仅展开智能投放一条装配线，其余四类结构相同。<b>新增一个业务 Agent 是在最上层增加一份配置，不涉及下两层的代码改动</b>——这是"平台层"这一定位能否成立的判据。</p>
+
+    <p><b>业务 Agent 层没有代码</b>，它是数据库里的角色、模板、Skill、检索源等配置记录。平台层的内部代码结构是另一件事，见 §3.1。两者的关系与部署单元的关系见 §2.3。装配机制见 §4.3，业务侧的装配规范与支撑性分析见 §10。</p>
+
+    <h3>2.2 部署单元</h3>
+
+    <p>四个可执行程序，四项有状态依赖。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>可执行单元</th>
+      <th>职责</th>
+      <th>状态</th>
+      <th>扩容</th>
+      <th>上限</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>API 服务</td><td>REST 请求、SSE 事件流、鉴权、请求校验</td><td>无状态</td><td>水平</td><td>无</td></tr>
+      <tr><td>执行引擎</td><td>上下文重建、Agent 循环、权限判定、工具调用、事件产出</td><td>无状态</td><td>水平</td><td>无</td></tr>
+      <tr><td>队列 Worker</td><td>消费定时任务与流程步骤，派发执行轮次</td><td>无状态</td><td>水平</td><td>无</td></tr>
+      <tr><td>飞书接入</td><td>维持长连接，将群消息转为内部任务请求</td><td>持续运行</td><td>多副本连接池</td><td><b>受飞书单应用连接数上限约束</b></td></tr>
+      </tbody></table></div>
+
+    <p>API 服务与执行引擎可作为同一进程的两种角色部署，也可拆分，取决于负载特征。文档中分列是为区分职责。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>有状态依赖</th>
+      <th>承载</th>
+      <th>说明</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>主数据库</td><td>会话、消息、待办、审计、定时任务、流程定义与运行记录</td><td>默认 MongoDB，接口层面支持 PostgreSQL</td></tr>
+      <tr><td>Redis</td><td>事件流缓冲、执行租约、控制信令、队列 broker</td><td>四种用途均不可省</td></tr>
+      <tr><td>对象存储</td><td>交付物与附件</td><td>S3 协议兼容</td></tr>
+      <tr><td>密钥存储</td><td>连接器凭证、MCP 令牌</td><td>独立于主库</td></tr>
+      </tbody></table></div>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  subgraph EXT["外部"]
+    B["浏览器"]
+    FS["飞书开放平台"]
+    SYS["内部系统"]
+  end
+
+  subgraph APP["可执行单元（无状态，水平扩展）"]
+    API["`API 服务
+REST · SSE`"]
+    ENG["`执行引擎
+Agent 循环`"]
+    WK["`队列 Worker
+定时 · 步骤`"]
+    IM["`飞书接入
+长连接池`"]
+  end
+
+  subgraph DEP["有状态依赖"]
+    DB[("主数据库")]
+    RD[("`Redis
+事件流 · 租约
+信令 · 队列`")]
+    OS[("对象存储")]
+    KS[("密钥存储")]
+  end
+
+  B --> API
+  SYS --> API
+  FS -.长连接.-> IM
+  IM --> API
+  API --> ENG
+  WK --> ENG
+  API --> RD
+  ENG --> RD
+  WK --> RD
+  ENG --> DB
+  API --> DB
+  ENG --> OS
+  ENG --> KS
+      </pre>
+    </div>
+
+    <p>Redis 承担的四项职责性质不同，但均属协调而非存储：协调放 Redis，数据库只做记录的读写（原则 P2，§2.5）。</p>
+
+    <h3>2.3 三种划分的关系</h3>
+
+    <p>本文档出现三种划分，它们回答的是不同问题，互不重叠：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>划分</th>
+      <th>回答什么</th>
+      <th>单位</th>
+      <th>位置</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>平台层 / 业务 Agent 层</td><td>什么是代码，什么是配置</td><td>代码 vs 数据</td><td>§2.1</td></tr>
+      <tr><td>代码分层</td><td>代码内部谁能依赖谁</td><td>包 / 目录</td><td>§3.1</td></tr>
+      <tr><td>部署单元</td><td>线上跑几个进程</td><td>进程</td><td>§2.2</td></tr>
+      </tbody></table></div>
+
+    <p><b>第一层关系：代码五层全部属于平台层。</b> 业务 Agent 层不含代码，它是数据库中的配置记录。因此这两个划分不在同一维度上——五层是平台层的内部结构，业务层是平台层的输入数据。</p>
+
+    <p><b>第二层关系：五层在进程内部。</b> §2.2 那张图画的是进程与它连接的外部依赖，五层画的是进程内部的代码结构——两者不在同一维度。把执行引擎剖开看：</p>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart LR
+  subgraph P["执行引擎（一个进程内）"]
+    direction TB
+    O["`编排层
+turn · workflow`"]
+    R["`规则层
+permission · compaction`"]
+    C["`能力层
+tools · mcp`"]
+    I["`基础设施层
+repository · lease · eventbus`"]
+    O --> R
+    O --> C
+    O --> I
+    R --> I
+    C --> I
+  end
+  I --> DB[("主数据库")]
+  I --> RD[("Redis")]
+  I --> OS[("对象存储")]
+  C --> EXT["`外部系统
+MCP 服务 · 飞书`"]
+      </pre>
+    </div>
+
+    <p>关键一点：<b>基础设施层是"访问外部依赖的代码"，不是外部依赖本身。</b> §2.2 图中的主数据库、Redis、对象存储、密钥存储是进程外的服务；基础设施层是进程内负责与它们打交道的那部分代码。两者名字相近但一个在框内一个在框外。</p>
+
+    <p>图中另有一处值得注意：<b>能力层同时连向外部与基础设施层</b>——调用 MCP 服务或飞书属于前者，读取调用所需的凭证属于后者。</p>
+
+    <p><b>第三层关系：四个部署单元是同一份代码的不同启动角色，不是四个独立工程。</b> 每个单元只加载五层中的一部分：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th></th>
+      <th>接入层</th>
+      <th>编排层</th>
+      <th>规则层</th>
+      <th>能力层</th>
+      <th>基础设施层</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><b>API 服务</b></td><td>●</td><td>○ 仅派发</td><td>○ 请求校验</td><td>—</td><td>●</td></tr>
+      <tr><td><b>执行引擎</b></td><td>—</td><td>●</td><td>●</td><td>●</td><td>●</td></tr>
+      <tr><td><b>队列 Worker</b></td><td>—</td><td>● <code>workflow</code> / <code>scheduler</code></td><td>●</td><td>—</td><td>●</td></tr>
+      <tr><td><b>飞书接入</b></td><td>● 仅 <code>feishu_gateway</code></td><td>—</td><td>—</td><td>—</td><td>● 仅话题绑定与投递</td></tr>
+      </tbody></table></div>
+
+    <p>读法：<b>层是横切的（按职责切代码），部署单元是纵切的（按运行角色切进程）。</b></p>
+
+    <p>两条由此推出的实际约束：</p>
+
+    <ul>
+      <li><b>能力层只在执行引擎中加载。</b> API 服务与队列 Worker 不执行工具，因此不需要 MCP 客户端与连接器——这也意味着<b>工具凭证只需下发到执行引擎</b>，其余单元无需持有。</li>
+      <li><b>飞书接入不含规则层与能力层。</b> 它收到事件后只做落库与投递，不做任何判断（§9.18 要求回调立即返回）。</li>
+    </ul>
+
+    <h3>2.4 运行时视图</h3>
+
+    <p>四个入口的请求最终汇聚到执行轮次，结果经事件流分发。</p>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart LR
+  subgraph IN["入口"]
+    direction TB
+    I1["网页提交"]
+    I2["飞书 @提及"]
+    I3["内部系统 HTTP"]
+    I4["定时到期"]
+  end
+
+  IN --> S["`建会话 / 定位已有会话
+确定权限模式 · 记忆挂载 · 回投通道`"]
+  S --> T["执行轮次"]
+  T --> EV["`事件流
+带递增序号`"]
+  EV --> O1["SSE 推送浏览器"]
+  EV --> O2["回复飞书话题"]
+  EV --> O3["调用方轮询 / 订阅"]
+  T --> AP["`需人工介入
+待办项落库`"]
+  AP -.处理结果.-> T
+      </pre>
+    </div>
+
+    <p>入口层在转为执行轮次前须确定三项：<b>权限模式</b>（遇风险操作是询问还是自动放行）、<b>记忆挂载</b>（默认不带）、<b>结果回投通道</b>（完成或需人工介入时的通知去向）。</p>
+
+    <p>四个入口的差异集中在第三项。网页有实时连接，飞书有话题，定时任务与内部系统调用无人值守，其回投通道是待办中心与状态查询接口。无人值守链路的多项设计由此推出（§9.10、§9.11）。</p>
+
+    <h3>2.5 设计原则</h3>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>原则</th>
+      <th>含义</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><b>P1 计算层无状态</b></td><td>计算节点不长期持有会话状态，状态一律落在共享存储</td></tr>
+      <tr><td><b>P2 协调职责外置</b></td><td>分布式锁、租约、信令由 Redis 承担，数据库只做记录读写</td></tr>
+      <tr><td><b>P3 人工介入必须可恢复</b></td><td>需人工处理的事项持久化到待办服务，不依赖内存态挂起，可跨断连、重启与实例恢复</td></tr>
+      <tr><td><b>P4 外部依赖皆可替换</b></td><td>存储、密钥、对象存储统一走接口，具备本地替代实现</td></tr>
+      <tr><td><b>P5 接口取能力交集</b></td><td>面向可替换后端的接口只使用各实现的公共能力，不暴露任一实现的独有特性</td></tr>
+      </tbody></table></div>
+
+    <h2 id="f-3">3 · 模块划分</h2>
+
+    <h3>3.1 代码分层与依赖约束</h3>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  L1["`**接入层** interface
+HTTP · SSE · 飞书`"]
+  L2["`**编排层** orchestration
+轮次 · 执行图 · 定时`"]
+  L3["`**规则层** rules
+只判断，不取数据不执行`"]
+  L4["`**能力层** capability
+工具注册表 · MCP`"]
+  L5["`**基础设施层** infra
+仓储 · 事件流 · 租约`"]
+
+  L1 --> L2
+  L2 --> L3
+  L2 --> L4
+  L3 -.只依赖接口.-> L5
+  L2 -.只依赖接口.-> L5
+  L4 -.只依赖接口.-> L5
+      </pre>
+    </div>
+
+    <h4>每一层放什么</h4>
+
+    <p>一词概括：接入层<b>翻译</b>，编排层<b>调度</b>，规则层<b>判断</b>，能力层<b>动手</b>，基础设施层<b>存取</b>。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>层</th>
+      <th>放什么</th>
+      <th>判据</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><b>接入层</b> interface</td><td>协议转换：HTTP 路由、SSE 推送、飞书长连接</td><td>只把外部请求翻译成内部调用，不含任何业务判断</td></tr>
+      <tr><td><b>编排层</b> orchestration</td><td>决定"什么时候做什么"：驱动轮次、调度步骤、派发子任务</td><td>它掌握顺序与时机，规则问规则层，动作交能力层</td></tr>
+      <tr><td><b>规则层</b> rules</td><td><b>规则与判断</b></td><td><b>测试需要起数据库吗？需要就不属于这一层</b></td></tr>
+      <tr><td><b>能力层</b> capability</td><td>agent 可以调用的东西：工具、连接器、MCP</td><td><b>模型看得见</b>，能在调用规格里选择它</td></tr>
+      <tr><td><b>基础设施层</b> infra</td><td>平台自己运行要用的设施：存储、队列、事件流、模型网关</td><td><b>模型看不见</b>，它不知道这些存在</td></tr>
+      </tbody></table></div>
+
+    <p>两处容易混淆，单独说明。</p>
+
+    <h4>规则层是什么</h4>
+
+    <p>把一次工具调用拆成四件事，每层只负责一件：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th></th>
+      <th>谁负责</th>
+      <th>做什么</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><b>调度</b></td><td>编排层</td><td>决定现在该做哪一步</td></tr>
+      <tr><td><b>取</b></td><td>基础设施层</td><td>从库里读出需要的数据</td></tr>
+      <tr><td><b>判断</b></td><td><b>规则层</b></td><td><b>拿到数据后算出结论</b></td></tr>
+      <tr><td><b>动手</b></td><td>能力层</td><td>真的去调用外部系统</td></tr>
+      </tbody></table></div>
+
+    <p><b>规则层只做"判断"这一件事。</b> 它被调用时，需要的数据已经由别人取好并作为参数传进来；它算出结论后返回，后续动作由别人执行。它自己不读库、不发请求、不改变任何外部状态。</p>
+
+    <p>体现在函数形状上：</p>
+
+    <pre class="ascii">属于规则层：
+    判定(工具风险等级, 会话权限模式) → 直接执行 / 需人工介入
+    两个入参都是值，返回一个结论。跑它不需要数据库、不需要网络。
+
+不属于规则层：
+    判定并执行(工具名, 会话标识) → 执行结果
+    它要先查会话、查工具元数据、再执行——一个函数里混了取、判断、动手三件事。</pre>
+
+    <p><b>一次完整走查</b>：模型请求调用「发送飞书消息」。</p>
+
+    <ol>
+      <li>编排层发现模型请求了工具调用，需要判断能否执行</li>
+      <li>编排层向基础设施层取数据：这个会话的权限模式是什么（读库）</li>
+      <li>编排层向能力层取数据：这个工具的风险等级是什么（读注册表元数据）</li>
+      <li>编排层把两个值交给规则层：<code>判定(外部副作用, 逐项询问)</code> → <b>需人工介入</b></li>
+      <li>规则层返回结论。<b>它全程没有读过任何东西</b></li>
+      <li>编排层据此行动：写待办项（基础设施层）、挂起轮次</li>
+    </ol>
+
+    <p>规则层在第 4 步被调用，前后都不参与。</p>
+
+    <h4>规则层里有哪些</h4>
+
+    <p>放的是"给定输入直接算出结果"的部分：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>模块</th>
+      <th>输入</th>
+      <th>输出</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><code>permission</code></td><td>工具风险等级 + 会话权限模式</td><td>直接执行 / 需人工介入</td></tr>
+      <tr><td><code>compaction</code></td><td>消息列表 + 预算上限</td><td>压缩边界位置（须落在轮次边界上）</td></tr>
+      <tr><td><code>memory</code></td><td>多个记忆空间的条目 + 优先级 + 预算</td><td>合并去重截断后的条目列表</td></tr>
+      <tr><td><code>agent</code></td><td>角色定义 + 记忆条目 + Skill 描述</td><td>系统提示词 + 允许调用的工具名清单</td></tr>
+      <tr><td><code>approval</code></td><td>待办项当前状态 + 提交的处理结果</td><td>状态迁移是否合法、是否已被他人处理</td></tr>
+      </tbody></table></div>
+
+    <p>不属于规则层的：读会话历史（<code>repository</code>）、调模型（<code>model_gateway</code>）、执行工具（能力层）、决定循环调用顺序（<code>turn</code>）、解析 HTTP（接入层）。</p>
+
+    <p>隔离这一层的实际收益：上表五项恰是最需要测试覆盖的部分——权限判错是安全事故，压缩边界切错会使模型收到残缺的工具调用结构。若它们与数据库、网络耦合，测试需拉起完整依赖，实际结果是覆盖不全。</p>
+
+    <div class="callout key">这一层在有些架构方法（DDD）里叫"领域层"。本文档不用那个叫法，也不采用那套建模方式（聚合、值对象、领域事件）——本系统的复杂度在分布式执行，不在业务建模。</div>
+
+    <p><b>能力层与基础设施层的区别在于模型是否可见。</b> 工具、连接器、MCP 属能力层，模型能看到它们的调用规格并选择调用；存储、队列、事件流、模型网关属基础设施层，模型不知道它们存在。因此 <code>model_gateway</code>（平台用于调用模型）在基础设施层而非能力层。</p>
+
+    <h4>依赖约束</h4>
+
+    <p>依赖只能向下。四条约束可在 review 阶段机械检查：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>#</th>
+      <th>约束</th>
+      <th>违反后果</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>R-1</td><td>规则层不得引入存储、协议、厂商 SDK</td><td>规则无法脱离环境单测；权限判定、压缩边界这类最需覆盖的逻辑变得难测</td></tr>
+      <tr><td>R-2</td><td>接入层不得直接访问存储，须经编排层或规则层</td><td>鉴权与审计被绕过</td></tr>
+      <tr><td>R-3</td><td>基础设施只被接口依赖，实现在启动时注入</td><td>主库引擎可插拔无法落地；本地开发失去轻量替代</td></tr>
+      <tr><td>R-4</td><td>能力层不得依赖编排层</td><td>工具可反向驱动执行轮次，递归失控</td></tr>
+      </tbody></table></div>
+
+    <p>R-4 是「禁止递归派生」（§9.3）在代码结构上的保证：子任务分发属编排层，工具属能力层，能力层不能向上依赖，该调用在结构上不可表达，无需运行时检查。</p>
+
+    <h3>3.2 模块清单</h3>
+
+    <p><b>接入层 <code>interface</code></b></p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>模块</th>
+      <th>职责</th>
+      <th>约束</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><code>http</code></td><td>REST 路由、请求校验、鉴权、错误映射</td><td>只做协议转换，不含业务判断</td></tr>
+      <tr><td><code>sse</code></td><td>事件流推送、<code>Last-Event-ID</code> 续传</td><td>从事件流读取，不直接访问引擎</td></tr>
+      <tr><td><code>feishu_gateway</code></td><td>长连接维持、事件接收与转换</td><td>回调立即返回，不在回调内等待轮次（§9.18）</td></tr>
+      </tbody></table></div>
+
+    <p><b>编排层 <code>orchestration</code></b></p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>模块</th>
+      <th>职责</th>
+      <th>约束</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><code>turn</code></td><td>驱动执行轮次：上下文重建、Agent 循环、事件产出、检查点</td><td>内部实现待定（§11.2），对外先按 <code>Run</code> / <code>Resume</code> / <code>Cancel</code> 定接口</td></tr>
+      <tr><td><code>workflow</code></td><td>执行图：定义校验、fan-out 展开、步骤调度、指纹复用、失败策略</td><td>步骤最终派发给 <code>turn</code></td></tr>
+      <tr><td><code>scheduler</code></td><td>定时任务到期判定与投递</td><td>只判定与投递，不在判定循环内等待执行</td></tr>
+      <tr><td><code>subtask</code></td><td>子任务分发与并发上限</td><td>子任务同样派发给 <code>turn</code></td></tr>
+      </tbody></table></div>
+
+    <p><b>规则层 <code>rules</code></b> —— 可在无数据库、无网络条件下完成单测。若某项逻辑做不到，说明分层有误。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>模块</th>
+      <th>职责</th>
+      <th>约束</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><code>session</code></td><td>会话与消息的数据模型、状态迁移规则</td><td></td></tr>
+      <tr><td><code>agent</code></td><td>助手角色模型；装配为会话运行时配置</td><td>纯函数；只输出允许的工具名清单，不访问注册表（§4.3）</td></tr>
+      <tr><td><code>permission</code></td><td>风险分级与权限模式 → 是否需人工介入</td><td>纯函数</td></tr>
+      <tr><td><code>approval</code></td><td>待办项状态机与并发处理语义</td><td>含"已被其他通道处理"的判定</td></tr>
+      <tr><td><code>memory</code></td><td>记忆空间分层合并与预算截断</td><td>与 <code>agent</code>、<code>skill</code> 共享注入预算</td></tr>
+      <tr><td><code>skill</code></td><td>按角色计算注入清单；正文加载的作用域判定</td><td>纯函数；正文读取属基础设施</td></tr>
+      <tr><td><code>compaction</code></td><td>压缩边界计算（按轮次对齐）</td><td>纯函数</td></tr>
+      <tr><td><code>artifact</code></td><td>交付物引用与归档时机约束</td><td></td></tr>
+      </tbody></table></div>
+
+    <p><b>能力层 <code>capability</code></b></p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>模块</th>
+      <th>职责</th>
+      <th>约束</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><code>tools/registry</code></td><td>三类来源统一注册为同一形态</td><td>注册后对模型无差别</td></tr>
+      <tr><td><code>tools/builtin</code></td><td>文件、检索、记忆、<code>load_skill</code> 等</td><td><code>load_skill</code> 为只读工具但须进审计（§9.19）</td></tr>
+      <tr><td><code>connectors/feishu</code></td><td>飞书消息收发</td><td>一期唯一连接器</td></tr>
+      <tr><td><code>mcp</code></td><td>MCP 客户端、工具发现与包装</td><td>默认按外部副作用级别处理</td></tr>
+      <tr><td><code>retrieval_source</code></td><td>检索源配置解析与调用参数注入</td><td>模板只引用检索源名，不出现 MCP 服务名</td></tr>
+      </tbody></table></div>
+
+    <p><b>基础设施层 <code>infra</code></b> —— 接口与实现分离。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>模块</th>
+      <th>接口职责</th>
+      <th>实现</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><code>repository</code></td><td>各实体读写与游标分页</td><td>MongoDB（默认）/ PostgreSQL</td></tr>
+      <tr><td><code>objectstore</code></td><td><code>put</code> / <code>get</code> / <code>list</code> / <code>delete</code> / <code>signed_url</code></td><td>S3 兼容 / 本地文件</td></tr>
+      <tr><td><code>secretstore</code></td><td>凭证读写</td><td>受管加密存储</td></tr>
+      <tr><td><code>eventbus</code></td><td>事件追加与按序号读取</td><td>Redis Stream</td></tr>
+      <tr><td><code>lease</code></td><td>执行租约抢占、续期、释放</td><td>Redis</td></tr>
+      <tr><td><code>signal</code></td><td>控制信令收发</td><td>Redis Pub/Sub</td></tr>
+      <tr><td><code>queue</code></td><td>任务投递与消费</td><td>Redis broker</td></tr>
+      <tr><td><code>model_gateway</code></td><td>模型调用（流式 / 非流式）</td><td>各提供商适配</td></tr>
+      </tbody></table></div>
+
+    <p><b>接口取能力交集</b>（P5）：仓储接口统一用游标分页而非偏移量，主键由应用层生成而非数据库自增，不使用任一引擎的独有查询特性。对象存储只暴露对象语义，不暴露文件句柄、随机读写、重命名与真实目录——否则本地实现与线上行为不一致，且这类差异通常到生产才暴露。</p>
+
+    <h3>3.3 模块与分工</h3>
+
+    <p>以下几组耦合较紧，建议由同一人或同一小组承担：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>分组</th>
+      <th>依据</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><code>turn</code> + <code>permission</code> + <code>approval</code></td><td>审批是轮次中的挂起与恢复，三者状态迁移须一并设计</td></tr>
+      <tr><td><code>workflow</code> + <code>queue</code> + <code>scheduler</code></td><td>幂等领取、重复投递、重叠触发属同一类问题</td></tr>
+      <tr><td><code>agent</code> + <code>skill</code> + <code>memory</code></td><td>三者均在会话构建阶段贡献系统提示词，共享同一份注入预算</td></tr>
+      <tr><td><code>eventbus</code> + <code>sse</code></td><td>事件序号与断连续传须一并设计</td></tr>
+      <tr><td><code>lease</code> + <code>signal</code></td><td>均为跨实例协调，取消操作同时用到两者（§9.16）</td></tr>
+      <tr><td><code>tools/registry</code> + <code>mcp</code> + <code>retrieval_source</code></td><td>注册 → 包装 → 参数封装，一条链路</td></tr>
+      </tbody></table></div>
+
+    <h2 id="f-4">4 · 执行模型</h2>
+
+    <h3>4.1 执行轮次</h3>
+
+    <p>系统的核心是一个循环：把一句自然语言请求转换为一串工具调用。</p>
+
+    <pre class="ascii">用户："把上周渠道数据汇总成表格"
+   ↓
+模型：需要先查数据 → 请求调用「查询工具」
+   ↓
+系统：只读操作 → 直接执行 → 结果回填上下文
+   ↓
+模型：请求调用「写文件工具」
+   ↓
+系统：写盘操作 → 挂起等待审批 → 批准后执行
+   ↓
+模型：不再请求工具 → 循环结束</pre>
+
+    <p>一次「用户提交 → 循环跑到模型不再请求工具」的完整过程称为一次<b>执行轮次</b>，它是系统中唯一的执行单元。子任务分发与流程模板的每个步骤都是一次标准执行轮次，不存在第二套执行模型。</p>
+
+    <p>由此得到两个推论：</p>
+
+    <ul>
+      <li>编排层无需单独实现权限判定、审批、审计与崩溃恢复，这些能力直接继承。</li>
+      <li>轮次这条链上的任何缺陷会在所有编排场景中等比放大。</li>
+    </ul>
+
+    <p>循环结构本身简单，复杂度来自四处：模型调用需流式、工具可能产生外部副作用、任务时长可能超过客户端在线时间、系统需多实例部署。</p>
+
+    <p>完整时序见 §9.1。</p>
+
+    <h3>4.2 上下文重建</h3>
+
+    <p><b>引擎不持有会话。</b> 每次轮次开始时从数据库读取会话历史重建上下文，结束即释放。会话生命周期可能长于进程（定时任务、跨重启场景），因此进程内不缓存会话状态（P1）。</p>
+
+    <p><b>客户端连接与执行解耦。</b> 提交任务的 HTTP 请求在返回 <code>202</code> 时即结束，执行在后台进行。客户端断开、网络中断、前端崩溃均不影响任务，重连时凭事件序号补齐断连期间的事件（§9.2）。</p>
+
+    <p><b>上下文压缩</b>在出站规模超过预算阈值时触发，仅改写发送给模型的内容，原始历史不修改。三项约束：触发阈值须预留余量（压缩本身需一次模型调用）、压缩边界须按轮次对齐（工具调用与其结果不可分离）、摘要须落库缓存（否则每轮重新生成，长会话成本线性叠加）。详见 §9.13。</p>
+
+    <h3>4.3 装配：从角色算出提示词与工具清单</h3>
+
+    <p>每次轮次开始，引擎要向模型发起一次请求。请求里有两样东西是这次会话专属的：</p>
+
+    <ol>
+      <li><b>系统提示词</b> —— 一段文字，说明它是什么助手、按什么规则做事、掌握哪些背景</li>
+      <li><b>可调用的工具清单</b> —— 模型这次能选择调用哪些工具</li>
+    </ol>
+
+    <p>而会话记录上只存了一个角色标识，例如「广告投放优化助手 v3」。<b>从这个标识算出上面两样东西的过程，就是装配。</b></p>
+
+    <pre class="ascii">输入：角色标识 + 版本
+
+  ↓ 读出角色定义，以及它引用的 Skill、记忆空间、工具集声明
+
+输出：
+  系统提示词 = 角色提示词 + 记忆条目 + Skill 的名称与描述
+  工具清单   = 已注册工具 ∩ 角色声明的工具集
+  另含：权限模式默认值、模型选择、可参与匹配的模板清单</pre>
+
+    <p>换句话说，角色定义是"配方"，装配是"照配方把这次执行的初始状态配出来"。</p>
+
+    <p><b>版本在会话创建时固定，装配每轮次重建。</b> 会话记录存的是角色标识与角色版本，而非角色内容的快照：不存快照是因为会话可能存活数天，快照会使角色变更对既有会话完全不可见；固定版本是因为运行中的会话不应因管理方修改角色而中途改变行为——与流程模板的处理一致（§9.17）。装配产物不落库（P1）。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>输入</th>
+      <th>贡献</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>助手角色</td><td>系统提示词主体、权限模式默认值、模型选择</td></tr>
+      <tr><td>Skill</td><td>名称与描述拼入系统提示词，正文按需加载（§9.19）</td></tr>
+      <tr><td>记忆空间</td><td>合并后的记忆条目拼入系统提示词</td></tr>
+      <tr><td>工具集声明</td><td>允许调用的工具名清单</td></tr>
+      <tr><td>流程模板引用</td><td>可参与匹配的模板清单</td></tr>
+      </tbody></table></div>
+
+    <p>装配是纯函数，属规则层 <code>rules/agent</code>。由 R-1 与分层关系推出一个结果：<b>规则层不能访问工具注册表</b>（两者平级），因此装配只输出允许的工具名清单，由编排层持该清单向注册表取实际可调用对象。职责由此分开——装配判定可用范围，注册表解析名称到实现。</p>
+
+    <h4>角色只能收窄，不能放宽</h4>
+
+    <p>这是配置层与平台层之间的核心边界。角色声明的工具集是对已注册工具的过滤，不构成新的授权来源。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>允许</th>
+      <th>不允许</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>从已注册工具中选取子集</td><td>声明未注册的工具</td></tr>
+      <tr><td>将默认权限模式设得更严</td><td>调低某个工具的风险等级</td></tr>
+      <tr><td>限制可用的流程模板范围</td><td>使需审批的工具变为不需审批</td></tr>
+      </tbody></table></div>
+
+    <p>风险等级只由平台基础表与用户级覆盖决定（§8.1），角色配置对其没有写入权。<b>不守住这条边界，一份业务配置即可使审批机制失效。</b></p>
+
+    <p>需说明的现状：一期无身份体系，配置的写权限实际等同于共享口令的持有权。这与「共享密钥叠加默认全自动权限模式」属同一类问题，需一并接受或一并收紧。</p>
+
+    <h4>角色的来源</h4>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>触发路径</th>
+      <th>角色来源</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>使用者发起会话</td><td>请求指定，未指定用默认角色</td></tr>
+      <tr><td>定时任务</td><td>任务定义声明</td></tr>
+      <tr><td>流程模板步骤</td><td>步骤声明；未声明则继承本次运行发起时的角色</td></tr>
+      </tbody></table></div>
+
+    <p>第三条意味着<b>流程模板可跨角色编排</b>（分析角色取数 → 创意角色成文），因为每个步骤本身是一次独立执行轮次。由此产生一条调度约束：派发步骤时须连同角色标识与版本一同派发，并记入步骤运行记录，否则事后无法复现该步骤当时的配置。</p>
+
+    <p><b>角色定义是人工配置，但调用时不必手动指定。</b> 网页输入框与飞书 <code>@提及</code> 均使用默认角色，使用者无需先了解有哪些角色。显式指定是可选路径（从流程库进入、或为某个群绑定固定角色）。</p>
+
+    <h4>角色不由模型自动判定</h4>
+
+    <p>"根据输入内容自动选择合适的角色"这一需求需拆成两半，两半的结论相反：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th></th>
+      <th>能否自动</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><b>知识适配</b>：这次任务该带哪些背景知识</td><td><b>可以，且机制已存在</b></td></tr>
+      <tr><td><b>能力边界</b>：这次能调哪些工具、遇风险操作是否询问</td><td><b>不可以</b></td></tr>
+      </tbody></table></div>
+
+    <p>能力边界不自动判定，理由三条：</p>
+
+    <ol>
+      <li><b>角色决定权限模式与工具集，判错即权限判错。</b> 这与"自动套用流程模板"属同一类风险，而后者已明确不做（匹配到亦须使用者确认）。角色的影响面更大——模板只决定步骤，角色决定能否调用某个工具。</li>
+      <li><b>不可复现。</b> 角色版本在会话创建时固定正是为了行为稳定；若角色本身由模型判定，同一输入两次提交可能落到不同角色。</li>
+      <li><b>审计断链。</b> 事后追溯"为何本次可调用该工具"，答案将变成"模型判断应使用该角色"。</li>
+    </ol>
+
+    <p><b>知识适配那一半由 Skill 机制承担。</b> 通用角色将全部 Skill 的名称与描述常驻上下文，模型判断需要哪个即调用 <code>load_skill</code> 取回正文（§6.3）——这本身就是按输入内容自动适配。因此"通用 Agent"的实现形态是：<b>默认角色（较宽的工具集 + 保守的权限模式）+ Skill 按需加载</b>，不需要额外机制。</p>
+
+    <p>确实需要切换到专门角色的场景，本质是需要某个专属工具，而那正是不应自动决定的部分。此类情况走<b>建议 + 确认</b>：平台匹配到候选角色后提示切换，由使用者确认，与模板匹配的处理一致。</p>
+
+    <h3>4.4 权限判定与人工介入</h3>
+
+    <p>每次工具调用在执行前经权限判定，输入为工具的风险等级与会话的权限模式，输出为直接执行或需人工介入。判定逻辑是纯函数，属 <code>rules/permission</code>。</p>
+
+    <p>需人工介入时轮次挂起。<b>挂起不是内存态等待</b>：待办项落库，当前请求随即结束，恢复由之后另一次独立请求触发，且可能落在其他实例上（P3）。这是定时任务在无人值守时段产生的审批能在次日被处理的前提。</p>
+
+    <p>人工介入分两类，共用同一套机制：<b>审批</b>（授权一次有风险的调用）与<b>提问</b>（补充缺失信息）。分发与回收流程见 §9.5。</p>
+
+    <h2 id="f-5">5 · 编排模型</h2>
+
+    <h3>5.1 两条路径</h3>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th></th>
+      <th>子任务分发</th>
+      <th>流程模板</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>编排者</td><td>父轮次自身</td><td>队列 Worker</td></tr>
+      <tr><td>步骤来源</td><td>模型临场决定</td><td>定义时固定</td></tr>
+      <tr><td>适用</td><td>临场探索型任务</td><td>定时、无人值守、需事先审查的任务</td></tr>
+      <tr><td>产物</td><td>运行时执行图</td><td>流程运行记录</td></tr>
+      </tbody></table></div>
+
+    <p>分工依据是<b>是否需要确定性</b>。两条路径共用同一执行单元与同一套执行图数据模型，因此后台可统一查询，运行时图亦可提升为模板（§9.8）。</p>
+
+    <p>子任务分发有两条代码层强制约束：单次分发的并行数设上限；<b>子任务的工具集中不含分发能力本身</b>，即禁止递归派生（由 R-4 在结构上保证）。</p>
+
+    <h3>5.2 执行图</h3>
+
+    <p>流程定义为 JSON 声明式文档，含参数定义与步骤列表，步骤间以依赖标识构成有向无环图。声明式的选择理由是可静态校验（无环、引用存在）且无执行安全问题；不采用"定义即代码"，因其要求执行用户提交的代码，与进程级软隔离的隔离方案冲突。</p>
+
+    <p><b>fan-out</b>：步骤可声明按列表型参数展开，运行时对列表中每个元素生成一个步骤实例并行执行。展开在运行启动、参数已知时一次性完成，此后图结构固定，调度与幂等控制均按展开后的实例进行。</p>
+
+    <p>模板运行启动的四步顺序不可交换：<b>参数收集 → 冻结非确定量 → fan-out 展开 → 定图落库</b>。展开源是参数，而参数可能由相对周期解算而来，因此展开须在冻结之后；图结构固定的前提是实例已生成，因此定图须在展开之后。顺序颠倒会使各并行实例各自取得时间基准，跨零点的长流程中不同实例将看到不同周期（§9.6）。</p>
+
+    <h3>5.3 幂等、指纹与复用</h3>
+
+    <p>需区分两类重复，成因与手段均不同。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th></th>
+      <th>重复投递</th>
+      <th>重复执行</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>成因</td><td>队列至少一次投递语义</td><td>重跑失败流程、改版后重跑</td></tr>
+      <tr><td>范围</td><td>单次运行内</td><td>跨运行</td></tr>
+      <tr><td>手段</td><td>状态条件更新</td><td>内容寻址的结果复用</td></tr>
+      </tbody></table></div>
+
+    <p><b>领取的原子性</b>：消费方以条件更新将步骤由「已派发」置为「执行中」，仅当更新成功才实际执行。因此这两个状态必须区分，不可合并。</p>
+
+    <p><b>步骤指纹</b>：</p>
+
+    <pre class="ascii">step_key = hash( 定义标识 + 定义版本 + 步骤标识 + 展开元素 + 解析后的输入 )</pre>
+
+    <p>"解析后的输入"指指令模板中全部引用代入实值之后的结果，即该步骤实际执行的内容。指纹相同即语义相同，可复用既有结果。由此得到断点续跑、改版后最小重跑、重复触发收敛三项能力（§9.7）。</p>
+
+    <p><b>含外部副作用的步骤不参与复用</b>，指纹命中亦重新执行并重新审批——副作用是否已发生无法从指纹推断，该标记须在工具元数据中显式声明。</p>
+
+    <p><b>确定性约束</b>：一切非确定量须在运行启动时求值一次并冻结进运行记录，步骤只能引用冻结值。否则指纹每次变化使复用永不命中，且重跑结果与原次不一致。该约束应在定义提交阶段校验拒绝，而非运行期暴露。</p>
+
+    <h3>5.4 失败、超时与取消</h3>
+
+    <p>失败判定有四个来源：工具报错、步骤超时、结果体超长、交付物归档失败。四者统一走同一套重试与策略分支。</p>
+
+    <p><b>重试不改变步骤指纹</b>（同一步骤、同一输入），因此重试计数记在同一条步骤运行记录上，不新建实例。重试须退避，含外部副作用的步骤重试次数为零。</p>
+
+    <p>失败策略三种：中止整体（默认）、跳过后继、继续。<b>fan-out 的失败策略作用在实例级，后继步骤的等待语义作用在步骤级</b>——"多路检索允许个别路失败"的实现是实例级策略「继续」加步骤级等待全部实例终态。</p>
+
+    <p><b>三层超时须满足严格不等式</b>：</p>
+
+    <pre class="ascii">模型调用超时  &lt;  步骤超时  &lt;  流程超时</pre>
+
+    <p>不等式不成立将产生孤儿执行：步骤已判失败、调度器已向下推进，而该次模型调用仍在进行并将在稍后返回，结果写入一个已终态的步骤。</p>
+
+    <p><b>取消的语义是停止推进，不是回滚。</b> 已发出的外部副作用无法撤回，中断只能保证不再执行后续操作。接口与产品文案均不得表达为"已撤销"。</p>
+
+    <h2 id="f-6">6 · 扩展体系</h2>
+
+    <h3>6.1 工具注册</h3>
+
+    <p>三类来源——内置工具、连接器、MCP 服务——注册为同一形态：一个可调用对象、一份调用规格、一组元数据（名称、分类、风险等级、是否需审批）。编排层只面向注册表，不感知工具来源。</p>
+
+    <p>采用注册表而非继承体系，使新增工具不触及编排层，且 MCP 工具与内置工具走完全相同的权限判定与审计路径。代价是<b>元数据必须准确</b>——风险等级标注错误将导致审批遗漏。</p>
+
+    <p>MCP 工具默认按外部副作用级别处理（需审批），放宽须显式配置。</p>
+
+    <h3>6.2 MCP 与检索源</h3>
+
+    <p>内部知识检索按常规方式经 MCP 接入，不作特例。但内置流程模板随平台版本发布，无法硬编码各部署环境的 MCP 服务名，因此引入一层间接：<b>检索源</b>是「MCP 工具 + 一组固定调用参数」的命名封装。</p>
+
+    <p>模板只引用检索源名，定义中不出现任何 MCP 服务名——更换后端服务只需修改检索源配置，模板不动。同一 MCP 服务可配置出多个检索源（仅参数不同），对模板而言它们是彼此独立的检索源。</p>
+
+    <p>MCP 与检索源是<b>供给关系而非调用关系</b>：它们在配置阶段就位，不在运行时被触发。配置变更时即刻回算模板的依赖可用性，该回算是模板可用状态的唯一来源（§9.9）。</p>
+
+    <h3>6.3 Skill</h3>
+
+    <p>Skill 是可复用的<b>指令知识</b>，与已有三类要素的区别：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th></th>
+      <th>内容</th>
+      <th>不是</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>工具</td><td>可执行的代码</td><td>不含做法知识</td></tr>
+      <tr><td>流程模板</td><td>有依赖关系的步骤序列</td><td>不适合表达无固定步骤的做法</td></tr>
+      <tr><td>助手角色</td><td>一个 Agent 的身份与能力边界</td><td>一份角色一套，无法跨角色复用</td></tr>
+      <tr><td><b>Skill</b></td><td>一段指令知识，含名称、描述、正文与可选附件</td><td>不是代码、不是流程、无身份</td></tr>
+      </tbody></table></div>
+
+    <p>空位由此产生：多个业务 Agent 会共享大量做法知识（文案合规要求、归因口径定义、取数规范）。写入角色提示词则每个角色重复一份且长期占用预算；做成工具则无可执行代码；做成流程模板则它不是流程。</p>
+
+    <p><b>核心机制是按需加载</b>：会话初始化时只将名称与描述注入上下文，Agent 判断需要时调用 <code>load_skill</code> 取回正文。若正文常驻，Skill 数量增加即会耗尽上下文预算，而这正是引入它所要避免的问题。</p>
+
+    <p>两点约束：正文只在本次会话生效，不写回持久历史（否则下一轮次重建上下文时会作为历史消息重复注入）；<code>load_skill</code> 虽为只读工具但<b>必须进审计</b>——它改变 Agent 的行为，不记录则事后无法解释某次执行的依据（§9.19）。</p>
+
+    <h2 id="f-7">7 · 状态与一致性</h2>
+
+    <p>多实例部署引入两个正确性问题，本章的机制均为应对它们。</p>
+
+    <h3>7.1 执行租约</h3>
+
+    <p><b>问题</b>：同一会话并发执行会破坏消息历史。以进程内标记保证"一个会话同时只有一个轮次"在多实例下无效——实例 A 执行会话 X 时请求落到实例 B，B 判定空闲并启动第二个轮次，两者同时追加消息并持久化。这是数据正确性问题，非体验降级。</p>
+
+    <p><b>机制</b>：以 Redis 原子写入抢占 <code>session:lease:&lt;会话标识&gt;</code>，执行期间续期，结束时释放。<b>必须设置 TTL</b>——进程被强制终止时不执行释放逻辑，无 TTL 将导致会话永久锁死。</p>
+
+    <p><b>续期失败须主动放弃轮次。</b> 续期失败意味着租约可能已因 TTL 到期被他人抢占，此时继续写入即回到上述历史破坏场景，只是触发原因从判定失误变为存储抖动。</p>
+
+    <h3>7.2 事件流</h3>
+
+    <p>事件是引擎与外界之间的唯一契约。每个关键节点产出一个带单调递增序号的事件，写入带 TTL 的 Redis Stream，该 Stream 兼作实时分发通道与断连回放缓冲。</p>
+
+    <p>前端、内部系统与飞书回投消费的是同一份事件流。<b>不为任一客户端增设专用通路，不以时间戳替代序号。</b></p>
+
+    <p>断连续传由 SSE 协议原生的 <code>Last-Event-ID</code> 承载，服务端按序号读取增量即可，无需自研心跳与重连协议（§9.2）。</p>
+
+    <h3>7.3 跨实例信令</h3>
+
+    <p><b>问题</b>：中断须作用于持有该轮次的执行上下文。若轮次在实例 A 运行而中断请求落到实例 B，B 无法触及该上下文，中断将无声失败。</p>
+
+    <p><b>机制为双通道</b>。Redis Pub/Sub 不保证投递——订阅方短暂断连期间发布的消息直接丢弃，因此取消不能只走信令：</p>
+
+    <ol>
+      <li>在会话上写入<b>持久化取消标记</b>，执行引擎在每次轮次迭代之间检查；</li>
+      <li>发布控制信令，使执行中的模型流或工具调用尽快响应。</li>
+    </ol>
+
+    <p><b>信令是加速通道，正确性由持久标记保证。</b> 信令丢失只影响响应延迟，不影响取消最终生效。</p>
+
+    <p>审批类交互不需要该通道——它经待办服务持久化（P3），天然跨实例可用。</p>
+
+    <h2 id="f-8">8 · 安全模型</h2>
+
+    <h3>8.1 风险分级与审批</h3>
+
+    <p>每次工具调用按风险等级分类（只读 / 本地写入 / 命令执行 / 外部副作用），结合会话的权限模式得出是否需人工介入。风险等级只由平台基础表与用户级覆盖决定，配置层无写入权（§4.3）。</p>
+
+    <p>审批是整个安全模型的最后一道防线。其有效性依赖审批卡片能否让使用者在不询问他人的情况下判断操作后果，因此<b>批准率与决策时长是监控项</b>：批准率接近 100% 且决策时长极短即为盲批信号。</p>
+
+    <h3>8.2 注入防护</h3>
+
+    <p>Agent 系统的注入风险主要来自<b>工具返回内容</b>而非用户输入。用户输入本身即为指令，不构成注入；风险在于 MCP 服务或检索源返回的文本中夹带指令，该文本直接进入上下文，而 Agent 具备工具调用能力。</p>
+
+    <p>普通 LLM 应用被注入的后果是输出不当内容，Agent 被注入的后果是执行不当操作。该攻击面随 MCP 接入服务增多而扩大。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>防护</th>
+      <th>做法</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>来源边界标记</td><td>工具返回内容拼入上下文时显式标注为数据而非指令，并在系统提示词中约定数据区内容不作为指令执行</td></tr>
+      <tr><td>触发来源可见</td><td>审批卡片须显示该次调用由哪一步、依据什么内容发起</td></tr>
+      <tr><td>来源不可提权</td><td>工具返回内容不得降低后续调用的风险等级</td></tr>
+      <tr><td>外部地址白名单</td><td>向外部地址发送数据的工具，目标地址取自配置而非模型产出</td></tr>
+      </tbody></table></div>
+
+    <p><b>护栏不替代审批，而是减少审批疲劳。</b> 注入攻击最终会撞上审批，前提是审批者能识别出该操作与其请求无关。</p>
+
+    <h3>8.3 数据边界</h3>
+
+    <p><b>密钥</b>不得进入提示词、上下文与追踪记录。</p>
+
+    <p><b>业务敏感数据</b>（个人信息、人群数据）需同等对待，但边界不同——它们是任务的处理对象，不能简单禁止。约束落在工具层：返回个人信息的工具默认返回聚合结果或标识引用；确需明文的场景由该工具单独声明，并按外部副作用级别处理。约束落在调用规格上因而可静态检查，不依赖模型自觉。</p>
+
+    <p><b>数值计算须由工具完成</b>，模型只负责组织表述。模型自行计算的错误率不低且不可追查。约束落在两处：分析类角色的系统提示词明确要求计算调用工具；聚合类工具在返回结果中同时给出口径说明，供模型原样引用。</p>
+
+    <p><b>输出内容审核</b>做成一类工具而非引擎内建钩子：审核服务经 MCP 接入，发布类工具在其调用规格中声明依赖审核结果。引擎侧只保证一点——声明需审核的工具在审核未通过时不得执行。</p>
+
+    <h2 id="f-9">9 · 核心流程</h2>
+
+    <p>本章为动态视图：19 条流程的时序、分支与实现要点。静态模型见 §4–§8。</p>
+
+    <p>先给两组跨流程的内容——共性规则与易错实现——它们分散在多条流程中，单独实现每条流程时容易各自发明一遍。</p>
+
+    <h4>共性规则</h4>
+
+    <p><b>状态迁移一律用条件更新，不用先读后写。</b> 出现在步骤领取（§9.14）、待办项处理（§9.5）、租约抢占（§9.16）。三处形式一致：将状态由 X 改为 Y，只有更新成功的一方继续执行。任何"先查状态再决定是否写入"的实现均为缺陷。</p>
+
+    <p><b>"已被其他方处理"是正常态，不是错误。</b> 出现在待办项被两个通道同时提交、步骤被两个 Worker 同时领取、租约被抢占。三处均应返回已处理及其结果，不得返回冲突错误。</p>
+
+    <p><b>含外部副作用的步骤永不复用、永远重新审批。</b> 出现在断点续跑（§9.7）、重试（§9.14）、定时任务重叠（§9.11）。判据无法从步骤指纹推断，须在工具元数据中显式声明。</p>
+
+    <p><b>时间与随机须在运行启动时冻结。</b> 出现在模板启动（§9.6）、续跑（§9.7）、定时触发（§9.11）。步骤内部读取当前时间的实现均为缺陷。三处表现不同（指纹不稳、跨零点周期不一致、重跑结果与原次不同），根因一致。</p>
+
+    <p><b>事件是唯一对外契约，序号是唯一顺序依据。</b> 贯穿全部流程。不为任一客户端增设专用通路，不以时间戳替代序号。</p>
+
+    <h4>易错实现</h4>
+
+    <p>以下三处的共同特征是<b>功能测试可以通过</b>，仅在网络抖动、跨实例、多步骤流程场景下暴露，因此须靠设计约束而非测试保证。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>位置</th>
+      <th>看似正确的实现</th>
+      <th>实际缺陷</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>§9.16 租约续期</td><td>续期失败则重试续期</td><td>续期失败意味租约可能已被抢占，须放弃轮次而非继续</td></tr>
+      <tr><td>§9.16 取消</td><td>发布 Pub/Sub 信令即视为取消</td><td>Pub/Sub 不保证投递，须同时写入持久化取消标记</td></tr>
+      <tr><td>§9.12 交付物</td><td>会话结束时归档</td><td>每个步骤是独立会话，工作区在该步骤结束时即清理，须产出即归档</td></tr>
+      </tbody></table></div>
+
+    <h3>9.1 一次任务的执行流程</h3>
+
+    <div class="diagram">
+      <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant C as 客户端
+  participant API as API 服务
+  participant R as Redis
+  participant E as 执行引擎
+  participant DB as 主数据库
+  participant M as 模型服务
+
+  C->>API: 创建会话
+  API->>DB: 写入会话记录
+  API-->>C: 会话 ID
+  C->>API: 订阅事件流（SSE）
+  C->>API: 提交任务消息
+  API->>R: 获取执行租约（带 TTL）
+  API-->>C: 202 Accepted + 轮次 ID
+  API->>E: 派发执行轮次（后台执行，与客户端连接解耦）
+
+  E->>DB: 读取会话历史，重建上下文
+  E->>DB: 按会话上的角色标识+版本读取角色定义
+  E->>E: 装配：拼系统提示词（角色 + 记忆 + Skill 描述） 算出允许的工具名清单
+  E->>E: 按清单从工具注册表取可调用对象
+  loop 直到模型不再请求工具
+    E->>M: 流式请求
+    M-->>E: 回复内容 + 工具调用请求
+    E->>E: 风险等级判定 + 权限模式评估
+    alt 需要人工审批
+      E->>DB: 写入待办项，挂起当前轮次
+      C->>API: 提交审批结果
+      API->>R: 发布审批信令
+      R-->>E: 送达
+    end
+    E->>E: 在任务工作区内执行工具
+    E->>R: 追加事件到会话事件流（携带递增序号）
+    R-->>API: 订阅推送
+    API-->>C: SSE 推送
+    E->>DB: 写入检查点
+  end
+  E->>R: 释放执行租约
+  E->>DB: 持久化最终结果
+      </pre>
+    </div>
+
+    <p><b>要点</b>：</p>
+
+    <ul>
+      <li>执行轮次以后台任务方式运行，生命周期与客户端连接<b>完全解耦</b>——客户端断开不影响任务继续。</li>
+      <li><b>装配每轮次重建，角色版本在会话创建时固定</b>（§4.3），运行中的会话不因角色变更而中途改变行为。</li>
+      <li>事件写入 Redis 事件流时携带<b>单调递增序号</b>，这是断连续传的基础（数据模型）。</li>
+      <li>检查点在关键节点写入，保证进程异常退出后可从最近检查点恢复。</li>
+    </ul>
+
+    <h3>9.2 断连与恢复</h3>
+
+    <div class="diagram">
+      <pre class="mermaid">
+sequenceDiagram
+  participant C as 客户端
+  participant API as API 服务
+  participant R as Redis 事件流
+  participant E as 执行引擎
+
+  Note over C,E: 任务执行中
+  C--xAPI: 客户端断开（刷新/网络中断）
+  Note over E: 执行轮次继续运行，不受影响
+  E->>R: 事件持续追加（保留在事件流中）
+  C->>API: 重连，携带最后接收的事件序号
+  API->>R: 按序号读取增量事件
+  R-->>API: 断连期间的全部事件
+  API-->>C: 补齐后转为实时推送
+      </pre>
+    </div>
+
+    <p><b>设计要点</b>：</p>
+
+    <ul>
+      <li>采用 SSE 作为事件通道，其协议原生支持断线重连并携带 <code>Last-Event-ID</code>，续传能力由协议提供，无需自研心跳与重连协议（REST + SSE 协议）。</li>
+      <li>事件流以带 TTL 的 Redis Stream 承载，兼作实时分发通道与重连回放缓冲。</li>
+      <li>需要人工处理的事项已持久化在待办服务（原则 P3），断连不会导致审批请求丢失，重连后重新可见。</li>
+    </ul>
+
+    <h3>9.3 任务编排</h3>
+
+    <p>两条路径共用同一执行单元：<b>每个子任务/步骤都是一次标准的执行轮次</b>，因而自动继承权限判定、审批、审计与可恢复能力，不需要另设执行模型。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>路径</th>
+      <th>触发方式</th>
+      <th>编排者</th>
+      <th>步骤如何确定</th>
+      <th>持久化流程记录</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><b>子任务分发</b></td><td>Agent 在执行中自主判断并发起</td><td>父轮次自身（同步等待子任务完成）</td><td>模型临场决定</td><td>是，记录为<b>运行时执行图</b></td></tr>
+      <tr><td><b>流程模板</b></td><td>用户手动触发或定时触发</td><td>任务队列 Worker</td><td><b>事先固定</b></td><td>是，记录流程定义、运行实例与步骤状态</td></tr>
+      </tbody></table></div>
+
+    <p><b>两条路径的分工依据是「是否需要确定性」</b>：定时、无人值守、需要事先审查的任务走流程模板——它每次执行相同步骤、可预测、可复现；临场探索型任务走子任务分发。</p>
+
+    <p><b>两者共用同一套执行图数据模型</b>（执行图模型）：动态拆解的结构会被同步记录为运行时执行图并持久化，因此可以在管理界面统一查询，也可被提升为模板，形成"内置模板提升初次质量 → 动态执行沉淀 → 库越用越强"的闭环。流程定义的产生方式均不要求手写依赖图。</p>
+
+    <p><b>子任务分发的强制约束</b>（代码层限制，不依赖模型自觉）：</p>
+
+    <ul>
+      <li>单次分发的并行子任务数量设上限，超出直接拒绝，避免瞬时占满执行资源。</li>
+      <li>子任务的工具集中不包含"子任务分发"能力本身，即<b>禁止递归派生</b>。</li>
+    </ul>
+
+    <p><b>流程模板</b>采用声明式描述（步骤 + 依赖关系 + 每步使用的助手角色与指令），不采用可执行脚本形式——声明式可静态校验、边界清晰。步骤间通过结构化的"步骤结果上报"传递产出，由后一步骤的起始指令注入。</p>
+
+    <h3>9.4 飞书接入流程</h3>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart LR
+  A["群内 @助手"] --> B["飞书开放平台"]
+  B -.长连接推送.-> C["飞书接入模块"]
+  C --> D{"该话题已绑定会话？"}
+  D -->|是| E["投递到已有会话"]
+  D -->|否| F["`新建会话
+授予该话题的定向回复权限`"]
+  E --> G["执行轮次"]
+  F --> G
+  G --> H["结果回复到原话题"]
+  G -.需要审批.-> I["`审批请求推送到该话题
+可在飞书内直接决定`"]
+      </pre>
+    </div>
+
+    <p>新建会话时授予一条<b>限定在该话题范围内的定向回复权限</b>，使 Agent 回复该话题无需逐条审批，而其他操作仍走完整审批流程。</p>
+
+    <h3>9.5 审批与提问的分发与回收</h3>
+
+    <p><b>触发</b>：权限判定认为需人工介入（审批），或 Agent 缺少必要信息无法继续（提问）。两者共用同一套机制，仅事项类型不同。</p>
+
+    <h4>核心判断：待办项是唯一事实来源，分发是镜像而非路由</h4>
+
+    <p>一次人工介入请求会同时出现在多个位置，但<b>它们不是几条并行的消息，而是同一个待办项的多个视图</b>。这个区分决定了并发处理的正确性——任一视图上的操作都作用于同一条记录，因此无论使用者从哪里处理，结果都收敛到一处。</p>
+
+    <p>会话的<b>回投通道集合</b>在创建时确定：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>场景</th>
+      <th>通道</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>网页会话</td><td>事件流内联卡片 <b>+ 待办中心</b></td></tr>
+      <tr><td>飞书话题会话</td><td>飞书话题消息 <b>+ 待办中心</b></td></tr>
+      <tr><td>定时任务</td><td><b>待办中心</b> + 到期提醒</td></tr>
+      <tr><td>内部系统调用</td><td><b>待办中心</b> + 调用方状态查询可见"等待人工确认"</td></tr>
+      </tbody></table></div>
+
+    <p><b>待办中心在所有场景都存在</b>，这是刻意的——它是兜底通道，保证任何请求都不会因为某条通道不可用而丢失。</p>
+
+    <div class="diagram">
+      <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant E as 执行引擎
+  participant T as 待办服务
+  participant R as Redis
+  participant U as 实时通道 （网页 / 飞书）
+  participant IB as 待办中心
+
+  E->>T: 创建待办项（类型、标题、脱敏参数、风险等级）
+  E->>E: 挂起当前轮次（保留并续约执行租约）
+  T->>R: 发布「新待办」事件
+  R-->>U: 内联审批卡片 / 话题消息
+  Note over IB: 同一待办项在待办中心同时可见
+  U->>T: 提交结果（批准 / 拒绝 / 改要求）
+  T->>T: 条件更新 待处理 → 已处理
+  alt 更新成功
+    T->>R: 发布审批信令（待办项标识 + 结果）
+    R-->>E: 持有租约的实例接收
+    E->>E: 恢复轮次，按结果继续或改向
+  else 更新失败（已被其他通道处理）
+    T-->>U: 返回「已处理」及处理结果（不作为错误）
+  end
+      </pre>
+    </div>
+
+    <h4>关键分支</h4>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>情形</th>
+      <th>处理</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>两个通道同时提交</td><td>条件更新仅一方成功；另一方看到「已由某通道处理」及其结果——这是正常态，不是错误</td></tr>
+      <tr><td>轮次所在实例崩溃</td><td>租约过期 → 走 数据模型 恢复流程重建会话，<b>读取已落库的待办结果继续</b>，不重新发起审批</td></tr>
+      <tr><td>长时间无人处理</td><td><b>不自动拒绝</b>（方案，需确认）——静默拒绝会让无人值守任务失败得毫无线索；改为列表持续可见 + 到期提醒</td></tr>
+      <tr><td>飞书侧自由文本无法解析</td><td>回一条明确的可选项指引，<b>不做意图猜测</b>——猜错等于代替使用者做了授权决定</td></tr>
+      <tr><td>批量处理</td><td>「全部批准」不含高风险项（PRD 数据模型），高风险必须逐条确认，避免一键盲批</td></tr>
+      </tbody></table></div>
+
+    <p><b>持久化落点</b>：待办项、处理结果、审计记录。 <b>上下游</b>：上游为权限判定（§4.4）；下游为轮次恢复（§9.1）；跨实例投递依赖控制信令（§9.16）。</p>
+
+    <h3>9.6 模板运行的启动</h3>
+
+    <p><b>前置校验不通过则拒绝启动，且不产生运行记录</b>——避免管理界面里堆积一批从未真正开始的失败运行。校验项：定义存在且启用、依赖资产齐备（检索源 / 连接器）、必填参数齐备、<b>各步骤声明的角色存在且启用</b>。</p>
+
+    <p><b>步骤的角色</b>：每个步骤可声明自己的助手角色，未声明则继承本次运行发起时的角色。因此模板可跨角色编排（分析角色取数 → 创意角色成文），每个步骤本身是一次独立执行轮次（§9.3）。派发步骤时要连同该步骤的角色标识与版本一起派发，并记入步骤运行记录，否则事后无法复现该步骤当时的配置（§4.3）。</p>
+
+    <h4>四步顺序不可交换</h4>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  A["触发：手动 / 定时 / 接口"] --> B{"定义可用且依赖齐备？"}
+  B -->|否| X["`拒绝启动，返回缺失项
+不产生运行记录`"]
+  B -->|是| C["① 收集并校验参数"]
+  C --> D["`② 冻结非确定量
+时间基准 · 相对周期解算 · 随机值`"]
+  D --> E{"存在 fan-out 步骤？"}
+  E -->|否| G["④ 定图"]
+  E -->|是| F["`③ 按列表长度展开实例
+超并行上限则分批，不拒绝`"]
+  F --> G
+  G --> H["`写入流程运行（含冻结量）
++ 全部步骤运行（状态=待执行，含步骤指纹）`"]
+  H --> I["记 run.created / run.started 事件"]
+  I --> J["触发首轮调度 → §9.14 的调度算法"]
+      </pre>
+    </div>
+
+    <p><b>为什么顺序固定</b>：展开源是参数，而参数可能由相对周期解算得到，所以<b>展开必须在冻结之后</b>；图结构固定的前提是实例已生成，所以<b>定图必须在展开之后</b>（流程定义的校验规则）。若先展开后冻结，各实例会各自取时间基准——跨零点的长流程里会出现"不同路看到不同周期"，且指纹不稳定导致复用永不命中。</p>
+
+    <p><b>一个可提前的动作</b>：步骤指纹在<b>定图时即可计算</b>（此时输入已全部确定），不必等到派发。这样管理界面在运行开始时就能显示"本次有几步可复用"。</p>
+
+    <h3>9.7 断点续跑与结果复用</h3>
+
+    <h4>「续跑」与「重新运行」必须区分为两个动作</h4>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>动作</th>
+      <th>冻结量</th>
+      <th>指纹</th>
+      <th>效果</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><b>续跑</b></td><td><b>沿用原运行的冻结量</b></td><td>未改动的上游多能命中</td><td>真正接着跑，只补做失败及其下游</td></tr>
+      <tr><td><b>重新运行</b></td><td><b>重新冻结</b></td><td>全部变化</td><td>等价于全量重跑</td></tr>
+      </tbody></table></div>
+
+    <p>这是确定性约束（§9.6 的冻结约束）推出的必然结论：<b>冻结量参与指纹计算，沿用与否直接决定能否命中。</b> 因此界面上不能只给一个「重跑」按钮——否则"为什么有时几秒就完成、有时又整跑一遍"无法向使用者解释。</p>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  A["使用者在运行记录上发起"] --> B{"续跑 or 重新运行"}
+  B -->|续跑| C["新建运行，沿用原冻结量"]
+  B -->|重新运行| D["新建运行，重新冻结"]
+  C --> E["按定图逐步骤计算指纹"]
+  D --> E
+  E --> F{"`指纹命中原运行中
+已成功的步骤？`"}
+  F -->|否| I["正常派发执行"]
+  F -->|是| G{"该步骤含外部副作用？"}
+  G -->|是| I
+  G -->|否| H["`复制结构化结果与交付物引用
+记 step.reused 事件`"]
+  H --> J["继续调度后继步骤"]
+  I --> J
+      </pre>
+    </div>
+
+    <h4>要点</h4>
+
+    <ul>
+      <li><b>始终新建运行，不原地改写原运行</b>——原运行是审计事实；且「部分成功」已产出的结果需要保留。</li>
+      <li><b>含外部副作用的步骤永不复用</b>（§9.7 的步骤指纹），即使指纹命中也重新执行并重新走审批。</li>
+      <li><b>交付物复用的是引用</b>，不复制对象存储中的文件。</li>
+      <li><b>定义已改版时</b>：改动步骤及其全部下游指纹变化、自然重跑；未改动的前缀命中复用——这就是 「追加写事件 + 步骤指纹」的持久化模型 所说的「最小重跑」，无需额外机制。</li>
+    </ul>
+
+    <h3>9.8 提升为模板</h3>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  A["使用者对某次运行时图声明「存为流程」"] --> B["读取执行轨迹"]
+  B --> C["提炼步骤：默认按原执行顺序串行"]
+  C --> D["`识别可参数化项
+相对时间 · 具体目标 · 具体标识`"]
+  D --> E["`使用者确认
+删步骤 / 调顺序 / 勾选可并行 / 确认参数`"]
+  E --> F{"通过 流程定义的校验规则 校验？"}
+  F -->|否| E
+  F -->|是| G["落库为用户层定义 v1"]
+  G --> H["可选：试运行一次验证"]
+      </pre>
+    </div>
+
+    <p>三条约束都是刻意的：</p>
+
+    <ol>
+      <li><b>默认串行，并行需使用者主动勾选</b>——系统不自动推断（执行图模型）。串行只是慢，并行错了是数据问题。</li>
+      <li><b>不自动提升</b>——避免低质量拆解污染模板库，因此必须是显式动作。</li>
+      <li><b>子任务分发的嵌套只固化一层</b>（方案，需确认）——运行时图可能含"子任务内又拆了子任务"的结构。若逐层固化，模板结构会与实际执行结构不对等，也与"禁止递归派生"的约束（§9.3）冲突。建议将深层嵌套<b>压平为该层的一个步骤</b>，并在确认页显式标注被压平的部分。</li>
+    </ol>
+
+    <p><b>异常处理</b>：轨迹步骤数超模板上限 → 提示裁剪；未参数化的具体值 → 原样固化并<b>显式提示</b>（不静默固化，否则下次运行会把上次的收件人再发一遍）。</p>
+
+    <h3>9.9 检索源与 MCP 工具注册</h3>
+
+    <p>两者是<b>供给关系而非调用关系</b>：MCP 注册产出"可调用的工具"，检索源是"工具 + 固定参数"的命名封装。<b>模板只引用检索源名，定义中不出现任何 MCP 服务名</b>（执行图模型）。</p>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  M1["配置 MCP 服务：传输方式 + 凭证"] --> M2["建立连接"]
+  M2 --> M3{"连接成功？"}
+  M3 -->|否| M4["`标记不可用 + 记录失败原因
+不影响其他服务`"]
+  M3 -->|是| M5["拉取工具表"]
+  M5 --> M6["`统一注册为平台工具
+默认 external 风险 = 需审批`"]
+  M6 --> S1["选一个已注册工具"]
+  S1 --> S2["填固定调用参数"]
+  S2 --> S3["命名并保存为检索源"]
+  S3 --> S4["`重算全部模板的依赖可用性
+可用 / 需先配置`"]
+      </pre>
+    </div>
+
+    <p><b>要点</b>：</p>
+
+    <ul>
+      <li><b>凭证入密钥存储，不进入提示词、上下文与追踪记录</b>（密钥集中存放的约定）。</li>
+      <li><b>MCP 工具默认 external 风险</b>（需审批），放宽须由使用方显式配置（§6.1）。</li>
+      <li><b>一个 MCP 服务可承载多个检索源</b>（仅固定参数不同）——对模板而言它们是彼此独立的检索源，各占一路。</li>
+      <li><b>依赖可用性回算是模板可用状态的唯一来源</b>——在配置变更时即刻重算，而不是等到运行时才发现缺失。这对应产品上「需先配置」这个状态的由来。</li>
+    </ul>
+
+    <h3>9.10 内部系统调用（无实时客户端）</h3>
+
+    <div class="callout key">§9.10–§9.12 共同构成<b>无人值守链路</b>。三者的共性问题是同一个——<b>结果与失败怎么被看见</b>：有人盯着时事件流就够了，没人盯着时必须依靠可判定的状态、可查的记录、可靠落地的产出。</div>
+
+    <div class="diagram">
+      <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant S as 调用方系统
+  participant API as API 服务
+  participant E as 执行引擎
+  participant IB as 待办中心
+
+  S->>API: 创建会话（权限模式、记忆空间、工作区）
+  API-->>S: 会话标识
+  S->>API: 提交消息（携带调用方幂等键）
+  API-->>S: 202 + 轮次标识
+  E->>E: 后台执行
+  alt 需要人工介入
+    E->>IB: 创建待办项（§9.5）
+    S->>API: 轮询状态
+    API-->>S: 等待人工确认（不是超时）
+  else 正常推进
+    S->>API: 轮询状态
+    API-->>S: 执行中
+  end
+  E->>API: 轮次结束
+  opt 已配置完成回调
+    API->>S: 回调（轮次标识 + 结果摘要）
+  end
+      </pre>
+    </div>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>项</th>
+      <th>要求</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>权限模式</td><td>创建会话时<b>必须显式声明，不提供隐式默认</b>（Q2 建议全自动，但见下方叠加风险）</td></tr>
+      <tr><td>记忆空间</td><td>不传即无跨会话记忆（记忆默认关闭的设计 默认关闭）</td></tr>
+      <tr><td><b>幂等</b></td><td><b>提交消息接口须接受调用方幂等键</b>，重复提交返回同一轮次标识而不再触发执行</td></tr>
+      <tr><td>状态语义</td><td>「等待人工确认」不得合并进「执行中」（对外接口 硬性要求），否则 「调用方只能看到超时」这一风险 无法缓解</td></tr>
+      <tr><td>完成回调</td><td>是否实现取决于 Q5；未实现时轮询是唯一兜底，需给出建议轮询间隔以免打满接口</td></tr>
+      </tbody></table></div>
+
+    <p><b>关于幂等键</b>：§9.14 的幂等领取 的机制覆盖队列投递与步骤执行，<b>不覆盖对外 HTTP 接口</b>。HTTP 客户端普遍会在超时后自动重试，没有幂等键时一次网络抖动就等于一次重复执行——对含外部副作用的任务意味着消息发两遍。</p>
+
+    <p><b>一处需要评审显式接受的叠加风险</b>：一期共享密钥鉴权 的一期鉴权是<b>单一共享密钥、不区分调用方</b>，而 Q2 建议内部系统调用默认采用<b>全自动权限模式</b>。两者叠加的实际含义是——<b>任何持有该密钥的内部系统都获得了无需审批执行任意已注册工具的能力</b>，且审计只能追溯到会话、无法追溯到具体调用方（无法追溯到具体调用方）。这不是任一决策自身的缺陷，而是两个决策的交叉后果，需要显式接受或收紧其中一项（记为 R12）。</p>
+
+    <h3>9.11 定时触发</h3>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  A["到期判定（定时规则 + 时区）"] --> B["`投递队列
+不在判定循环内同步等待`"]
+  B --> C["`Worker 领取
+条件更新防重复消费`"]
+  C --> D{"上一次运行仍未结束？"}
+  D -->|是| E["`按重叠策略处理
+默认跳过并记录原因`"]
+  D -->|否| F["`建会话：携带任务上的常驻授权
+权限模式取任务定义所声明`"]
+  F --> G{"任务绑定了流程模板？"}
+  G -->|是| H["走 §9.6 模板运行启动"]
+  G -->|否| I["拼开场指令，驱动一次轮次"]
+  H --> J["需人工介入 → 待办中心（§9.5）"]
+  I --> J
+  J --> K["`写任务运行记录
+结果摘要 + 交付物 + 关联会话`"]
+  K --> L["计算下次执行时间"]
+      </pre>
+    </div>
+
+    <p>三个分支必须定下来，都是当前的缺口：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>情形</th>
+      <th>方案（需确认）</th>
+      <th>理由</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><b>上次未结束、下次已到期</b></td><td><b>默认跳过</b>，并在运行记录里写明"因上次未完成而跳过"</td><td>定时任务多为周期性汇总，重叠执行常导致重复副作用（同一消息发两遍、生成两份同名交付物）。确实需要重叠的场景应显式配置为「排队」或「并行」</td></tr>
+      <tr><td><b>停机期间错过执行窗口</b></td><td><b>不补跑</b>，仅记录一条"已错过"</td><td>恢复后补跑一批积压任务会瞬时打满执行资源，且产出多份内容高度重叠的交付物，价值低而干扰大</td></tr>
+      <tr><td><b>时区与夏令时</b></td><td>任务定义存时区；DST 切换日<b>重复时点只执行一次、缺失时点顺延至下一有效时刻</b></td><td>不明确的话，一年会有两天出现漏跑或双跑，且极难复现与排查</td></tr>
+      </tbody></table></div>
+
+    <p><b>常驻授权</b>：定时任务可携带按目标限定的常驻规则（与飞书话题的定向回复权限同类，§9.4），使周期性任务不必每次为同一个已确认的操作重复审批。<b>但规则必须是精确匹配的「工具 → 目标」对，而不是放开某个风险等级</b>——后者等于把无人值守任务的权限上限整体抬高。</p>
+
+    <h3>9.12 交付物的产出与归档</h3>
+
+    <h4>先修正一处会导致错误实现的表述</h4>
+
+    <p>术语表原将交付物写作"<b>会话结束时</b>归档至对象存储"，而任务工作区是"单个会话专属的临时目录，会话结束后清理"。这两条放进流程里会引出错误实现——因为 本章「步骤即轮次」的约定 规定<b>每个步骤对应一次独立会话</b>，步骤 A 与步骤 B 的工作区互不可见；若"会话结束时归档"被理解为"整段对话结束时"，那么步骤 A 的工作区在其自身会话结束时早已清理，文件已经不存在了。</p>
+
+    <p><b>正确时机是「产出即归档」</b>：在产出所在的那一次轮次 / 步骤结束、<b>工作区清理之前</b>完成归档。术语表已据此修正。</p>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  A["轮次 / 步骤在工作区内产出文件"] --> B["归档至对象存储"]
+  B --> C{"归档成功？"}
+  C -->|否| D["重试；仍失败则判定该步骤失败并告警"]
+  C -->|是| E["`结果中携带交付物引用
+不内联文件内容（「步骤结果只带引用不内联内容」的约定）`"]
+  E --> F["清理工作区临时目录"]
+  F --> G["后继步骤按引用读取"]
+  G --> H["使用者 / 调用方经签名 URL 获取"]
+      </pre>
+    </div>
+
+    <p><b>要点</b>：</p>
+
+    <ul>
+      <li><b>归档未成功不得判定步骤成功</b>——否则后继步骤拿到失效引用，失败点会漂移到下游，排查时看到的是"步骤 B 读不到文件"而不是"步骤 A 归档失败"。这是 「归档失败导致产出丢失」这一风险 的具体落法。</li>
+      <li><b>工作区清理必须在归档之后</b>，顺序不可颠倒。</li>
+      <li>一律经<b>签名 URL</b> 获取，不直连对象存储；有效期与交付物保留期需确定（有效期数值待定）。</li>
+      <li><b>同名产出不覆盖</b>——多次运行产生同名文件时以运行 / 步骤标识区分。覆盖会让"部分成功时已有产出保留"这条承诺失效。</li>
+    </ul>
+
+    <h3>9.13 上下文压缩</h3>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  A["轮次开始，重建上下文"] --> B["估算出站内容规模"]
+  B --> C{"`超过预算阈值？
+不是等超了才压`"}
+  C -->|否| Z["原样发送"]
+  C -->|是| D["`选择压缩边界
+必须按轮次对齐`"]
+  D --> E{"该范围已有缓存摘要？"}
+  E -->|是| G["取缓存摘要"]
+  E -->|否| F["`调模型生成摘要并落库缓存
+缓存键 = 被压缩的消息范围`"]
+  F --> G
+  G --> H["`以摘要块替换边界之前的原文
+仅改写出站内容`"]
+  H --> I["发送；原始历史一字不动"]
+      </pre>
+    </div>
+
+    <p>三条约束，每一条不遵守都会出真实故障：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>约束</th>
+      <th>不遵守的后果</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><b>触发阈值须留出余量</b>，不能等超出预算才压</td><td>压缩本身要调一次模型，若已无余量则连压缩请求都发不出去，轮次直接卡死</td></tr>
+      <tr><td><b>压缩边界必须按轮次对齐</b>，工具调用与其结果不可分离</td><td>切在一次轮次中间会留下没有结果的孤立工具调用，模型收到残缺结构会报错或胡编结果</td></tr>
+      <tr><td><b>摘要必须落库缓存</b></td><td>否则每一轮都重新生成一次摘要，长会话的模型调用成本随轮次线性叠加，且每次摘要内容还可能不同</td></tr>
+      </tbody></table></div>
+
+    <p><b>与其他机制的关系</b>：</p>
+
+    <ul>
+      <li><b>原始历史不改动</b>（§4.2），因此界面上使用者看到的仍是完整过程——压缩对产品侧不可见。</li>
+      <li><b>不影响步骤指纹</b>：指纹算的是"指令模板代入实值后的结果"（§9.7 的步骤指纹），与历史是否压缩无关。</li>
+      <li><b>压缩是有损的</b>。保留原始历史只保证"人能回看"，不保证"模型能恢复"。因此<b>对准确性敏感的长任务应优先走流程模板</b>——每个步骤是独立会话、上下文天然短（本章「步骤即轮次」的约定），而不是让单个会话无限增长后依赖压缩兜底。这是 §9.3 两条编排路径之外的第三个选择依据。</li>
+    </ul>
+
+    <h3>9.14 步骤失败、重试与失败策略</h3>
+
+    <p><b>失败判定的四个来源</b>：工具调用报错、步骤超时（§9.15）、结果体超出长度上限（「步骤结果只带引用不内联内容」的约定）、<b>交付物归档失败</b>（§9.12）。四者统一走同一套重试与策略分支。</p>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  A["步骤失败"] --> B{"`该步骤 retries > 0
+且未耗尽？`"}
+  B -->|否| E["按失败策略分支"]
+  B -->|是| C{"含外部副作用？"}
+  C -->|是| E
+  C -->|否| D["`退避后重试
+指纹不变，重试计数 +1`"]
+  D --> A
+  E --> F{"策略"}
+  F -->|中止整体| G["`流程失败；未开始步骤置已取消
+已完成步骤产出保留`"]
+  F -->|跳过后继| H["`依赖本步骤的后继置已跳过
+不依赖的分支继续`"]
+  F -->|继续| I["忽略失败继续调度"]
+  G --> J["判定流程最终状态"]
+  H --> J
+  I --> J
+      </pre>
+    </div>
+
+    <p><b>几个之前未明确的点</b>：</p>
+
+    <ul>
+      <li><b>重试不改变步骤指纹</b>（同一步骤、同一输入），因此重试计数记在<b>同一条步骤运行记录</b>上，不新建实例。否则运行记录里会出现多条看起来重复的步骤。</li>
+      <li><b>重试须退避</b>（指数退避 + 次数上限），避免对外部服务形成压制式重试；具体参数见 待压测确定的数值。</li>
+      <li><b>fan-out 的失败策略作用在实例级，后继步骤的等待语义作用在步骤级</b>——这两层不要混。所以"三路检索允许个别路失败"的实现是：实例级策略为「继续」，步骤级仍等待全部实例到达终态（流程定义的校验规则）。</li>
+      <li><b>「部分成功」需要一条明确规则</b>（方案，需确认）：§9.14 的表述是"存在失败但有可用产出"，但"可用产出"由谁判定未定。建议采用可机械判定的规则——<b>至少一个出度为零的步骤成功产出了交付物或结构化结果，即判定为部分成功</b>；否则判定为失败。</li>
+      <li><b>失败原因必须落进运行记录且对使用者可读</b>，不能只留堆栈——无人值守任务的失败只能靠这条记录被理解。</li>
+    </ul>
+
+    <h3>9.15 超时与取消</h3>
+
+    <h4>三层超时必须满足不等式</h4>
+
+    <pre class="ascii">模型调用超时  &lt;  步骤超时  &lt;  流程超时</pre>
+
+    <p><b>这个不等式不成立就会产生孤儿执行</b>：若步骤超时早于模型调用超时，步骤已被判定失败、调度器已往下走，而那次模型调用仍在进行并会在稍后返回——结果写给一个已经终态的步骤。同理，流程超时早于步骤超时会留下"流程已结束、步骤还在跑"的状态。</p>
+
+    <h4>取消的传播</h4>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>步骤当前状态</th>
+      <th>处理</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>待执行 / 已派发</td><td>直接置为已取消，无需信令</td></tr>
+      <tr><td>执行中</td><td>经控制信令中断对应会话（§9.16）</td></tr>
+      <tr><td>已终态</td><td>不动，<b>产出保留</b></td></tr>
+      </tbody></table></div>
+
+    <p>中断在三个位置响应（§4.1）：模型流式输出中、工具执行中、轮次迭代之间。</p>
+
+    <h4>取消不是回滚</h4>
+
+    <p><b>已经发出的外部副作用无法撤回</b>——消息已经发出、文件已经写入外部系统，中断只能保证"不再继续做下一件事"。因此：</p>
+
+    <ul>
+      <li>技术语义是<b>停止推进</b>，不是撤销。</li>
+      <li><b>产品文案不得表达为"已撤销"或"已回滚"</b>，否则使用者会以为副作用被清除了。正确表达是"已停止，已发生的操作不会撤回"。</li>
+      <li>取消操作本身<b>幂等</b>：对已取消的运行重复取消无副作用、不报错。</li>
+    </ul>
+
+    <p>超时后的最终状态判定与 §9.14 一致：按已产出结果判定为「部分成功」或「失败」。</p>
+
+    <h3>9.16 执行租约与跨实例信令</h3>
+
+    <div class="diagram">
+      <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant API as API 服务
+  participant R as Redis
+  participant EA as 实例 A（执行中）
+  participant EB as 实例 B（收到取消请求）
+  participant DB as 主数据库
+
+  API->>R: 原子写入 session:lease（带 TTL）
+  alt 写入成功
+    R-->>EA: 获得租约，开始执行
+    loop 执行期间
+      EA->>R: 续期
+      alt 续期失败
+        EA->>EA: 主动放弃本轮次，不再写入消息
+      end
+    end
+  else 写入失败
+    API-->>API: 已有轮次在执行，返回冲突
+  end
+
+  EB->>DB: 写入会话级「取消标记」（持久化兜底）
+  EB->>R: 发布控制信令到 session:control
+  R-->>EA: 信令送达（加速通道，不保证）
+  EA->>EA: 在迭代间检查取消标记 → 中断
+  EA->>R: 释放租约
+      </pre>
+    </div>
+
+    <h4>续期失败与取消兜底</h4>
+
+    <p><b>一、续期失败必须主动放弃轮次。</b> 续期失败意味着租约可能已因 TTL 到期而被他人抢占。此时若继续执行并追加消息，就正好回到 §9.16 的执行租约与信令 问题一所描述的历史破坏场景——只是触发原因从"多实例判定失误"换成了"Redis 抖动"。因此续期失败的唯一正确处理是<b>立即停止写入并放弃本轮次</b>，交由恢复流程（数据模型）重新接管。</p>
+
+    <p><b>二、取消必须有持久化兜底，不能只依赖信令。</b> Redis Pub/Sub <b>不保证投递</b>：订阅方短暂断连期间发布的消息直接丢弃。若取消只走信令，一次网络抖动就会让取消静默失效——这正是 「跨实例中断静默失效」这一风险 描述的风险，而"测试覆盖跨实例场景"是验证手段、不是设计对策。</p>
+
+    <p>因此取消请求<b>同时</b>做两件事：</p>
+
+    <ol>
+      <li>在会话上写入<b>持久化的取消标记</b>——执行引擎在每次轮次迭代之间检查该标记；</li>
+      <li>发布控制信令——用于让执行中的模型流或工具调用<b>尽快</b>响应，而不必等到下一次迭代。</li>
+    </ol>
+
+    <p><b>信令是加速通道，正确性由持久标记保证。</b> 信令丢失只影响响应延迟，不影响取消最终生效。</p>
+
+    <h4>其他</h4>
+
+    <ul>
+      <li><b>TTL 是必须的</b>（§9.16 的执行租约与信令）：进程被强制终止时不会执行释放逻辑，无 TTL 会导致会话永久锁死。</li>
+      <li><b>审批类交互不需要这条信令通道</b>——它经待办服务持久化（§9.5，原则 P3），天然跨实例可用。</li>
+    </ul>
+
+    <h3>9.17 模板版本变更</h3>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  A["编辑组织层 / 用户层模板"] --> B{"通过 流程定义的校验规则 校验？"}
+  B -->|否| A
+  B -->|是| C["`产生新版本
+旧版本保留，不覆盖`"]
+  C --> D["`运行中的流程按启动时版本继续
+不受影响`"]
+  C --> E["`定时任务：下次运行采用新版本
+并在自动化列表显式提示已更新`"]
+  C --> F["`历史运行仍指向其原版本
+用于断点续跑的指纹比对`"]
+      </pre>
+    </div>
+
+    <h4>旧版本不能删，这是断点续跑推出来的约束</h4>
+
+    <p>§9.7 的续跑要按<b>原运行所用的定义版本</b>重算步骤指纹。若旧版本被物理删除，该运行的指纹无从计算，历史运行就再也不能续跑了。因此：</p>
+
+    <ul>
+      <li><b>只允许停用，不允许物理删除。</b> 停用后不能新起运行，但既有运行仍可续跑。</li>
+      <li>内置层模板随平台版本发布、只读，不走本流程。</li>
+    </ul>
+
+    <h4>定时任务绑定哪个版本</h4>
+
+    <p>这是之前的缺口，两种绑法都有明显问题：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>绑法</th>
+      <th>问题</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>绑固定版本</td><td>改了模板定时任务不生效，使用者会以为改动没保存</td></tr>
+      <tr><td>绑最新版本</td><td>改模板后<b>无人值守任务的行为静默改变</b>——这对定时任务是危险的</td></tr>
+      </tbody></table></div>
+
+    <p><b>方案（需确认）</b>：绑定「模板标识 + 取最新已发布版本」，<b>但版本变更时在「自动化」列表上给出显式提示</b>——"该流程已更新，下次运行将采用新版本"。既不静默改变行为，也不让改动失效。</p>
+
+    <h3>9.18 飞书凭证配置与长连接维持</h3>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  A["配置应用凭证"] --> B["存入密钥存储（密钥集中存放的约定）"]
+  B --> C["`各实例发起出站长连接
+构成连接池`"]
+  C --> D["事件到达任一连接"]
+  D --> E["`立即入队 / 落库并返回
+不在回调内同步执行轮次`"]
+  E --> F["按 §9.4 路由到会话"]
+  C -.掉线.-> G["`指数退避重连
+部分掉线不影响可用性`"]
+  G -.全部掉线.-> H["告警（可观测性告警项）"]
+      </pre>
+    </div>
+
+    <h4>事件回调与实例数上限</h4>
+
+    <p><b>一、事件回调必须立即返回，不能在回调内同步执行轮次。</b> 飞书长连接方案 明确"事件需在限定时间内处理完毕"，而一次执行轮次可能持续数分钟——若在回调里等轮次跑完，必然超时，飞书侧会判定投递失败并重试，结果是同一条消息被处理多次。因此接收后的唯一动作是<b>落库/入队并立即返回</b>，实际执行走正常的异步派发路径。</p>
+
+    <p><b>二、实例数受飞书单应用连接数上限约束。</b> 飞书长连接方案 提到"单应用连接数上限"，其部署含义是——<b>执行实例的水平扩容上限受此约束</b>（每实例维持一个连接）。超过上限时多余实例无法建连，需要改为"部分实例持有连接、其余仅做执行"的形态。这是一条需要写进部署文档的硬约束。</p>
+
+    <h4>其他</h4>
+
+    <ul>
+      <li>事件处理逻辑与实例无关，因此"消息投递至任一连接"（非广播）不需要选主或连接归属路由（飞书长连接方案 已确认）。</li>
+      <li>话题与会话的绑定关系持久化，保证重启后仍能正确路由。</li>
+      <li>凭证轮换时重建连接；旧连接自然断开。</li>
+    </ul>
+
+    <h3>9.19 Skill 的注入与按需加载</h3>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart TB
+  A["会话构建：取助手角色"] --> B["读该角色引用的 Skill 列表"]
+  B --> C["`只取名称与描述
+不读正文`"]
+  C --> D{"`名称描述 + 记忆
+超出注入预算？`"}
+  D -->|是| E["`按优先级截断
+并留可观测记录`"]
+  D -->|否| F["拼进系统提示词"]
+  E --> F
+  F --> G["轮次开始"]
+  G --> H{"Agent 判断需要某个 Skill？"}
+  H -->|否| I["正常执行"]
+  H -->|是| J["调用 load_skill（只读，不需审批）"]
+  J --> K["`读正文与附件引用
+进入本轮上下文`"]
+  K --> L["记审计：本次加载了哪些 Skill"]
+  L --> I
+      </pre>
+    </div>
+
+    <p><b>要点</b>：</p>
+
+    <ul>
+      <li><b>注入阶段只读描述</b>，这是按需加载能省下预算的前提。若把正文也注入，Skill 一多就会撑爆预算，而这正是引入它要避免的问题（§9.19）。</li>
+      <li><b>描述与记忆共享同一份注入预算</b>（§9.19 的注入预算）。两者相加才是注入总量，截断规则也共用。</li>
+      <li><b>正文只在本次会话生效，不写回持久历史</b>——否则下一轮次重建上下文时会把它当历史消息重复注入。</li>
+      <li><b><code>load_skill</code> 要进审计</b>。它是只读工具，但会改变 Agent 的行为，不记录就无法事后解释"这次它为什么这么做"。</li>
+    </ul>
+
+    <p><b>与流程模板的分工</b>：模板管"分几步做"，Skill 管"某一步该怎么做"。一个步骤的指令里可以引用 Skill，反过来不行——Skill 里不描述步骤依赖。</p>
+
+    <h2 id="f-10">10 · 业务 Agent 层</h2>
+
+    <h3>10.1 装配规范</h3>
+
+    <p>一个业务 Agent 由五项配置装配而成，装配机制见 §4.3。以智能投放为例：</p>
+
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart LR
+  AG["智能投放 Agent"] --> R["`助手角色
+广告投放优化助手`"]
+  AG --> T["`工具集
+投放平台 MCP · 出价接口 · A/B 实验接口`"]
+  AG --> W["`流程模板
+日常出价巡检 · 预算再分配`"]
+  AG --> M["`记忆空间
+ad-ops:bidding-rules`"]
+  AG --> S["`Skill
+出价调整规范 · 预算分配口径`"]
+      </pre>
+    </div>
+
+    <p><b>装配是配置行为，不是开发行为。</b> 新增业务 Agent 不涉及平台代码改动。</p>
+
+    <p>运行时平台只识别「角色」这一概念，不感知业务 Agent 的存在：</p>
+
+    <div class="diagram">
+      <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant U as 使用者
+  participant API as API 服务
+  participant E as 执行引擎
+  participant CFG as 配置 角色 · Skill · 模板 · 记忆
+  participant REG as 工具注册表
+
+  U->>API: 提交任务（携带角色标识）
+  API->>E: 建会话
+  E->>CFG: 按角色读取系统提示词、Skill 描述、记忆空间列表
+  CFG-->>E: 拼入系统提示词（受注入预算约束）
+  E->>REG: 按角色声明的工具集过滤可用工具
+  REG-->>E: 本次会话可调用的工具清单
+  Note over E: 配置至此使用完毕。后续执行、权限判定、 审批与审计对所有业务 Agent 一致
+  E->>E: 执行轮次
+      </pre>
+    </div>
+
+    <p>平台层与业务层的职责划分：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>平台层</th>
+      <th>业务 Agent 层</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>执行轮次、权限判定、审批、审计</td><td>业务判断逻辑（写在角色提示词与流程模板中）</td></tr>
+      <tr><td>工具注册与调用、MCP 接入</td><td>接入哪些业务系统、每个工具的调用参数</td></tr>
+      <tr><td>流程编排引擎</td><td>具体流程的步骤与依赖</td></tr>
+      <tr><td>记忆的存取与分层机制</td><td>记忆内容</td></tr>
+      <tr><td>事件流、可观测、成本归集</td><td>业务侧效果指标</td></tr>
+      </tbody></table></div>
+
+    <p>判据：凡是"更换业务 Agent 即需改动"的部分，均不属于平台层。</p>
+
+    <h3>10.2 支撑性分析</h3>
+
+    <p>公司后续将大范围铺开的五类业务 Agent，逐类核对触发形态、对平台的特殊要求与当前支撑情况。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>业务 Agent</th>
+      <th>触发形态</th>
+      <th>特殊要求</th>
+      <th>支撑情况</th>
+      </tr></thead>
+      <tbody>
+      <tr><td><b>分析</b> 自然语言查报表、归因、异常诊断</td><td>人工发起</td><td>检索多个数据源、结果标注出处</td><td><b>现成</b>。检索源与多路召回两个内置模板直接可用</td></tr>
+      <tr><td><b>投放</b> 出价优化、预算分配、A/B 调度</td><td>定时高频</td><td>单次覆盖数百个广告组；写操作可回滚</td><td><b>部分</b>。定时与审批具备；批量规模与回滚缺失</td></tr>
+      <tr><td><b>创意</b> 文案 / 图片 / 视频生成与审核</td><td>人工或批量</td><td>多模态模型调用；大文件产出；发布前内容审核</td><td><b>部分</b>。交付物机制具备；多模态与审核缺失</td></tr>
+      <tr><td><b>画像</b> 标签计算、人群圈选、Lookalike</td><td>人工或定时</td><td>单次运行数十分钟至数小时；处理个人信息</td><td><b>部分</b>。计算下推数据平台的机制具备；长时与数据治理缺失</td></tr>
+      <tr><td><b>客服坐席助手</b> 多轮对话、工单流转、情绪感知</td><td>坐席发起</td><td>查知识库、起草回复、工单写操作</td><td><b>现成</b>。见下</td></tr>
+      </tbody></table></div>
+
+    <h4>客服 Agent 需先区分形态</h4>
+
+    <p>按平台定位（内网员工助理，共享口令 + 限内网访问），此处应指<b>客服坐席助手</b>：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>需求</th>
+      <th>对应机制</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>多轮对话</td><td>会话本身即多轮</td></tr>
+      <tr><td>查知识库回答</td><td>单源检索 / 多路召回两个内置模板</td></tr>
+      <tr><td>起草回复</td><td>模型本职，无需平台能力</td></tr>
+      <tr><td>工单流转</td><td>MCP 调用工单系统 + 写操作审批</td></tr>
+      <tr><td>情绪感知</td><td>模型能力，无需平台支持</td></tr>
+      </tbody></table></div>
+
+    <p>使用者为内部坐席，数量级与员工数一致，并发与延迟均在现有设计假设内。</p>
+
+    <p>若指<b>直面外部用户的客服机器人</b>，则不属于本平台范围：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th></th>
+      <th>平台假设</th>
+      <th>对外机器人</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>访问模型</td><td>限内网与 VPN，不对公网开放</td><td>必须公网可达</td></tr>
+      <tr><td>威胁模型</td><td>使用者为内部员工而非不可信调用方</td><td>输入完全不可信</td></tr>
+      <tr><td>延迟与并发</td><td>单次任务数十秒至数分钟，会话数以十计</td><td>秒级应答，数百至数千并发</td></tr>
+      <tr><td>中断语义</td><td>遇风险操作挂起等待审批</td><td>对话中不可挂起</td></tr>
+      </tbody></table></div>
+
+    <p>前两条是范围问题而非技术问题——将公网流量引入内网员工助理平台需推翻两项已定决策。对外客服应另立系统，与本平台共享工具注册与 MCP 接入即可。</p>
+
+    <h3>10.3 能力缺口</h3>
+
+    <p>前四项为能力缺失，后三项为约束缺失。后者代码量小，但不明确必然出问题。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>#</th>
+      <th>缺口</th>
+      <th>需求方</th>
+      <th>现状</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>G1</td><td>多模态模型调用</td><td>创意</td><td>模型网关仅定义文本 <code>complete</code> / <code>stream</code>，无图像、视频、音频</td></tr>
+      <tr><td>G2</td><td>输出内容审核</td><td>创意</td><td>仅在工具调用层做风险判定，不检查模型输出内容</td></tr>
+      <tr><td>G3</td><td>长时任务</td><td>画像</td><td>流程超时、租约 TTL、事件流缓冲 TTL 均按分钟级设计</td></tr>
+      <tr><td>G4</td><td>高频批量执行</td><td>投放</td><td>fan-out 的设计目标是个位数并行，数百实例的调度与背压未验证</td></tr>
+      <tr><td>G5</td><td>写操作回滚 / 补偿</td><td>投放</td><td>取消语义为停止推进而非回滚，无补偿机制</td></tr>
+      <tr><td>G6</td><td>数值计算须由工具完成</td><td>分析</td><td>约束未落地（设计见 §8.3）</td></tr>
+      <tr><td>G7</td><td>业务敏感数据不进上下文</td><td>画像</td><td>仅覆盖密钥，未覆盖业务数据（设计见 §8.3）</td></tr>
+      </tbody></table></div>
+
+    <p><b>结论</b>：分析与客服（坐席助手形态）当前即可装配；投放、创意、画像需增量补齐 G1–G7，均可在现有架构内完成；无架构级不匹配项。唯一需先确认的是客服 Agent 的形态。</p>
+
+    <h2 id="f-11">11 · 技术选型</h2>
+
+    <h3>11.1 已定</h3>
+
+    <p><b>语言：Go。</b> 系统常态为大量轮次并发等待模型返回或等待人工审批，属 IO 密集，Go 的并发模型与之匹配，单二进制部署亦简化四个可执行单元的分发。</p>
+
+    <p>需接受的代价：Go 的 LLM 与 Agent 生态不如 Python 丰富，MCP 的参考实现多为 Python / TypeScript，客户端一侧可能需自行补齐，不能假定存在现成库。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>位置</th>
+      <th>选型</th>
+      <th>说明</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>LLM 调用</td><td><code>go-openai</code>、<code>anthropic-sdk-go</code> 一类 SDK</td><td>模型网关接口已定义，实现可换。多模态未覆盖（G1）</td></tr>
+      <tr><td>异步任务</td><td>Asynq 或同类，Redis 底座</td><td>与「队列 broker 复用 Redis」一致</td></tr>
+      <tr><td>微服务框架</td><td>Kratos / go-zero / 标准库</td><td>四个可执行单元、单租户内网，框架收益有限</td></tr>
+      <tr><td>向量库</td><td><b>一期不引入</b></td><td>记忆为静态注入不做运行时检索，RAG 走 MCP 检索源</td></tr>
+      <tr><td>事件总线</td><td><b>Redis Stream，不用 Kafka</b></td><td>事件流量与保留期需求未达 Kafka 量级</td></tr>
+      <tr><td>容器编排</td><td><b>一期不做</b></td><td>进程级软隔离为最终设计而非过渡形态</td></tr>
+      </tbody></table></div>
+
+    <p>后三项标注"一期不引入"的均为参考规划 V2 档选型，属排期问题而非否决，判断依据见 §11.2 的版本档位对照。</p>
+
+    <h3>11.2 待决策</h3>
+
+    <p>两项，均不阻塞其他模块开发。</p>
+
+    <h4>Agent 循环：引入 Eino 或自建</h4>
+
+    <p>一个常见但不成立的否决理由是"框架的编排与执行图会打架"——Eino 的 Graph 编排的是<b>轮次内部</b>的模型与工具循环，本平台的执行图编排的是<b>轮次之间</b>的步骤依赖，层级不同，可以共存。</p>
+
+    <p>先明确该层的需求：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>#</th>
+      <th>需求</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>N1</td><td>流式模型调用，增量输出转事件</td></tr>
+      <tr><td>N2</td><td>解析工具调用请求并执行</td></tr>
+      <tr><td><b>N3</b></td><td><b>调用前插入权限判定，可能挂起等待人工，且恢复可能发生在其他实例</b></td></tr>
+      <tr><td>N4</td><td>每个关键节点产出带序号的事件</td></tr>
+      <tr><td>N5</td><td>写检查点，崩溃后可恢复</td></tr>
+      <tr><td>N6</td><td>上下文压缩：改写出站内容</td></tr>
+      <tr><td>N7</td><td>记忆与 Skill 描述注入</td></tr>
+      <tr><td>N8</td><td>只读工具并发、副作用工具串行</td></tr>
+      </tbody></table></div>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>维度</th>
+      <th>引入 Eino</th>
+      <th>自建</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>N1 流式处理</td><td>框架承担，<b>节省工作量最大</b></td><td>自行实现，边界情况多但可控</td></tr>
+      <tr><td>N2 工具调用</td><td><code>ToolsNode</code> 现成</td><td>自行实现，复杂度低</td></tr>
+      <tr><td><b>N3 挂起与跨实例恢复</b></td><td><b>最大不确定性</b>，需实测</td><td>天然贴合：挂起即写库并返回</td></tr>
+      <tr><td>N4 事件产出</td><td>挂载 Callbacks</td><td>循环内直接产出</td></tr>
+      <tr><td>N5 检查点</td><td>Checkpoint 机制现成</td><td>自行实现，与会话状态同一份</td></tr>
+      <tr><td>N6 / N7</td><td>挂载 State Handler</td><td>循环入口处理</td></tr>
+      <tr><td>类型安全</td><td>编译期校验</td><td>依赖测试覆盖</td></tr>
+      <tr><td>状态一致性</td><td>框架 State 与会话状态两份，须对齐</td><td>一份</td></tr>
+      <tr><td>升级与耦合风险</td><td>存在</td><td>无</td></tr>
+      </tbody></table></div>
+
+    <p><b>决策方式</b>：以 1–2 周验证回答三个问题。</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>#</th>
+      <th>验证项</th>
+      <th>通过标准</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>V1</td><td>Eino 的 interrupt / resume 能否跨进程跨实例</td><td>进程 A 挂起，进程 B 恢复，Graph 状态完整且工具调用不重复执行</td></tr>
+      <tr><td>V2</td><td>CheckPointStore 能否由主数据库实现</td><td>不引入额外存储，且满足主库引擎可插拔</td></tr>
+      <tr><td>V3</td><td>事件序号能否在 Callbacks 中稳定递增</td><td>并发与流式场景下不乱序、不丢失</td></tr>
+      </tbody></table></div>
+
+    <p><b>V1 不通过即选自建</b>——N3 不可让步。验证完成前 <code>turn</code> 模块按接口定义开发（<code>Run</code> / <code>Resume</code> / <code>Cancel</code>），两种实现均可填入。</p>
+
+    <h4>编排内核：自研执行图或引入 Temporal</h4>
+
+    <p>参考规划将 Temporal 列为 <b>V2 首选</b>编排内核，其适用前提为 3–10 条业务线、DAU 500–5000、QPS 20–200、99.5% SLA、5–8 人团队。对照当前情况：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th></th>
+      <th>V1 档</th>
+      <th>当前设计</th>
+      <th>V2 档</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>编排</td><td>开源框架简单编排</td><td><b>自研执行图</b>（含幂等、指纹、续跑）</td><td>Temporal + 自研</td></tr>
+      <tr><td>规模</td><td>单业务线 POC</td><td>单租户内网、小范围试点</td><td>3–10 业务线</td></tr>
+      <tr><td>团队</td><td>2–3 人</td><td>2 人级</td><td>5–8 人</td></tr>
+      <tr><td>SLA</td><td>—</td><td>未定</td><td>99.5%</td></tr>
+      </tbody></table></div>
+
+    <p>Temporal 的适用前提当前均不成立，因此问题不是二选一，而是<b>何时从 V1 切到 V2</b>。</p>
+
+    <p>Temporal 可替代的自研机制：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>自研机制</th>
+      <th>Temporal 对应能力</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>§5.3 条件更新领取与队列投递</td><td>Task Queue 调度</td></tr>
+      <tr><td>§5.3 步骤指纹与结果复用</td><td>Event history replay</td></tr>
+      <tr><td>§5.4 重试与失败策略</td><td>RetryPolicy</td></tr>
+      <tr><td>§5.4 三层超时</td><td>ScheduleToClose / StartToClose</td></tr>
+      <tr><td>§7.1 执行租约</td><td>Workflow 单实例执行</td></tr>
+      <tr><td>§7.3 取消双通道</td><td>Cancellation</td></tr>
+      <tr><td>追加写事件集合</td><td>Event history</td></tr>
+      <tr><td>§9.17 版本保留与最小重跑</td><td>Workflow Versioning</td></tr>
+      </tbody></table></div>
+
+    <p>引入成本：多一个自带持久化存储的重量级依赖（与 P4 冲突）、CI 须运行真实 Temporal Server、会话与 workflow 的对应关系须重新设计、学习曲线与基础设施维护投入。</p>
+
+    <p>会话建模三种映射各有代价：</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>映射</th>
+      <th>问题</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>一次轮次 = 一个 workflow</td><td>流程模板的多步骤编排需父子 workflow，层级变深；会话历史仍在主库，两套状态须对齐</td></tr>
+      <tr><td>一个会话 = 一个长 workflow</td><td>超长 event history 需 Continue-As-New；会话历史在主库已有一份，将重复存储</td></tr>
+      <tr><td>仅流程模板走 Temporal</td><td>系统内并存两套执行路径，破坏「一个步骤 = 一次标准执行轮次」的统一性</td></tr>
+      </tbody></table></div>
+
+    <p><b>若维持自研，将来切换的代价</b>：<code>workflow</code> 模块对外仅暴露提交、查询、取消三个接口时，内部换引擎不影响调用方；但<b>历史运行记录无法迁移</b>——自研用步骤指纹与追加写事件，Temporal 用 event history，数据模型不同。切换只能新流程走 Temporal、老记录只读保留，且<b>切换前的历史运行将失去断点续跑能力</b>。</p>
+
+    <p>决策所需输入：12 个月内预期接入的业务 Agent 数量、是否有明确 SLA 要求、是否有专职基础设施维护投入。</p>
+
+    <h2>附录 A · 决策速查</h2>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+      <th>决策</th>
+      <th>结论</th>
+      </tr></thead>
+      <tbody>
+      <tr><td>会话执行模型</td><td>无状态按需重建，任意副本可处理任意请求</td></tr>
+      <tr><td>工具执行隔离</td><td>进程级软隔离（独立临时目录 + 低权限账号 + 资源限额），<b>最终设计而非过渡形态</b></td></tr>
+      <tr><td>主数据库</td><td>默认 MongoDB，仓储接口支持 PostgreSQL，接口只取能力交集</td></tr>
+      <tr><td>客户端协议</td><td>REST + SSE，续传能力由协议提供</td></tr>
+      <tr><td>任务调度</td><td>任务队列，broker 复用 Redis</td></tr>
+      <tr><td>并发控制</td><td>执行租约 + 控制信令，<b>多实例部署的硬性前置</b></td></tr>
+      <tr><td>密钥存储</td><td>受管加密存储，密钥不进提示词、上下文与追踪记录</td></tr>
+      <tr><td>认证</td><td>一期共享密钥、限内网，不区分调用方</td></tr>
+      <tr><td>可观测性</td><td>OpenTelemetry</td></tr>
+      <tr><td>任务编排</td><td>两条路径共用同一执行单元与同一套执行图数据模型</td></tr>
+      <tr><td>飞书接入</td><td>长连接，无需公网入口</td></tr>
+      <tr><td>连接器范围</td><td>一期仅飞书，其余走 MCP</td></tr>
+      <tr><td>环境依赖</td><td>依赖均有本地替代实现，<b>但 CI 必须用真实依赖服务</b></td></tr>
+      <tr><td>记忆作用域</td><td>默认关闭 + 显式记忆空间 + 分层挂载</td></tr>
+      <tr><td>编排数据表示</td><td>JSON 声明式文档；运行状态用追加写事件 + 步骤指纹</td></tr>
+      <tr><td>Agent 循环实现</td><td><b>待决策</b>（§11.2）</td></tr>
+      <tr><td>编排内核</td><td><b>待决策</b>（§11.2）</td></tr>
+      </tbody></table></div>
+    </div>
+  </main>
+</div>
+<script type="module">
+const root=document.documentElement;
+const isDark=()=>root.getAttribute('data-theme')==='dark';
+const saved=localStorage.getItem('be-theme');
+if(saved)root.setAttribute('data-theme',saved);
+else if(matchMedia('(prefers-color-scheme: dark)').matches)root.setAttribute('data-theme','dark');
+
+const hs=[...document.querySelectorAll('.wrap h2, .wrap h3')];
+hs.forEach((h,i)=>{ if(!h.id) h.id='s'+i; });
+document.getElementById('toc').innerHTML=hs.map(h=>
+  `<a href="#${h.id}" class="${h.tagName==='H3'?'lv2':''}">${h.textContent}</a>`).join('');
+const spy=new IntersectionObserver(es=>{es.forEach(e=>{
+  if(e.isIntersecting)document.querySelectorAll('#toc a').forEach(a=>
+    a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id));
+})},{rootMargin:'-8% 0px -80% 0px'});
+hs.forEach(h=>spy.observe(h));
+
+let seq=0;
+async function renderMermaid(){
+  const mod=await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
+  const mermaid=mod.default;
+  mermaid.initialize({
+    startOnLoad:false, theme:'base', securityLevel:'loose', markdownAutoWrap:false,
+    flowchart:{htmlLabels:true,useMaxWidth:true,nodeSpacing:42,rankSpacing:48},
+    sequence:{useMaxWidth:true,wrap:true,width:165},
+    themeVariables: isDark()?{
+      background:'#1a1a19',primaryColor:'#252523',primaryTextColor:'#f5f4f1',primaryBorderColor:'#3a3a37',
+      lineColor:'#8d8b84',secondaryColor:'#252523',tertiaryColor:'#1a1a19',fontSize:'13px',
+      fontFamily:'system-ui,-apple-system,sans-serif',actorBkg:'#252523',actorBorder:'#4b95e8',
+      actorTextColor:'#f5f4f1',signalColor:'#c9c7c0',signalTextColor:'#c9c7c0',labelBoxBkgColor:'#252523',
+      labelTextColor:'#f5f4f1',noteBkgColor:'#2c2c2a',noteTextColor:'#c9c7c0',noteBorderColor:'#3a3a37',
+      loopTextColor:'#c9c7c0',clusterBkg:'#161615',clusterBorder:'#2e2e2b'
+    }:{
+      background:'#ffffff',primaryColor:'#f4f3f0',primaryTextColor:'#0b0b0b',primaryBorderColor:'#c9c8c0',
+      lineColor:'#7c7a74',secondaryColor:'#f4f3f0',tertiaryColor:'#ffffff',fontSize:'13px',
+      fontFamily:'system-ui,-apple-system,sans-serif',actorBkg:'#f4f3f0',actorBorder:'#2a78d6',
+      actorTextColor:'#0b0b0b',signalColor:'#3f3e3b',signalTextColor:'#3f3e3b',labelBoxBkgColor:'#f4f3f0',
+      labelTextColor:'#0b0b0b',noteBkgColor:'#f1f0ed',noteTextColor:'#3f3e3b',noteBorderColor:'#c9c8c0',
+      loopTextColor:'#3f3e3b',clusterBkg:'#fafaf8',clusterBorder:'#e4e3dd'
+    }
+  });
+  const blocks=[...document.querySelectorAll('pre.mermaid')];
+  seq++;
+  for(let i=0;i<blocks.length;i++){
+    const el=blocks[i];
+    if(!el.dataset.src)el.dataset.src=el.textContent;
+    try{ const {svg}=await mermaid.render(`bm-${seq}-${i}`,el.dataset.src); el.innerHTML=svg; }
+    catch(e){ el.innerHTML='<span style="color:var(--crit);font-size:12px">图表渲染失败：'+e.message+'</span>'; }
+  }
+}
+document.getElementById('theme').onclick=async()=>{
+  const d=isDark();
+  root.setAttribute('data-theme',d?'light':'dark');
+  localStorage.setItem('be-theme',d?'light':'dark');
+  await renderMermaid();
+};
+await renderMermaid();
+</script>
+</body>
+</html>

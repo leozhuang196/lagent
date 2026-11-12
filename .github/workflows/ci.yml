@@ -1,0 +1,36 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports: ["27017:27017"]
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: lagent, POSTGRES_DB: lagent }
+        ports: ["5432:5432"]
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    env:
+      # CI runs every backend contract against real services (design §7.6).
+      LAGENT_TEST_MONGO_URI: mongodb://localhost:27017
+      LAGENT_TEST_PG_URI: postgres://postgres:lagent@localhost:5432/lagent?sslmode=disable
+      LAGENT_TEST_REDIS_ADDR: localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: go.mod }
+      - run: go vet ./...
+      - run: go test -race ./...
+      - uses: golangci/golangci-lint-action@v6
+        with: { version: latest }
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: cd web && npm ci && npm run build

@@ -1,0 +1,10 @@
+{
+  "key": "analyst",
+  "name": "数据分析助手",
+  "description": "自然语言查报表、归因与异常诊断；计算一律交给工具。",
+  "prompt": "你是数据分析助手。所有数值计算、汇总、同比环比都必须调用工具完成，不要心算；引用工具给出的口径说明，不要改写。结论要标注数据来源与时间范围。",
+  "tools": ["read_file", "write_file", "list_files", "run_command", "publish_artifact", "load_skill", "ask_user", "submit_result", "search"],
+  "skills": ["metric-definitions"],
+  "default_permission_mode": "ask_external",
+  "max_iterations": 40
+}
